@@ -76,8 +76,8 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           <h2 className="text-xl font-semibold mb-4">Remember the pattern!</h2>
           <p className="text-slate-400 mb-4">{getPhaseText()}</p>
           
-          {/* Pattern Sequence Display - Only show during 'showing' phase */}
-          {gamePhase === 'showing' && pattern.length > 0 && (
+          {/* Pattern Sequence Display */}
+          {gameMode === 'levels' && gamePhase === 'showing' && pattern.length > 0 && (
             <div className="bg-slate-700 rounded-lg p-4 mb-4">
               <h3 className="text-sm font-medium text-slate-400 mb-3">Memorize this sequence:</h3>
               <div className="flex flex-wrap justify-center gap-2">
@@ -104,8 +104,43 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             </div>
           )}
 
-          {/* Memory Challenge Info - Show during waiting/playing phases */}
-          {(gamePhase === 'waiting' || gamePhase === 'playing') && (
+          {/* Challenge Mode Rolling Sequence */}
+          {gameMode === 'challenge' && gamePhase === 'playing' && (
+            <div className="bg-gradient-to-r from-purple-700 to-blue-700 rounded-lg p-4 mb-4 border-2 border-purple-500">
+              <h3 className="text-sm font-medium text-white mb-3">Rolling Sequence - Remember & Click in Order:</h3>
+              <div className="flex flex-wrap justify-center gap-2 mb-3">
+                {pattern.slice(-4).map((color, index) => {
+                  const actualIndex = Math.max(0, pattern.length - 4) + index;
+                  const isNext = actualIndex === userInput.length;
+                  const isCompleted = actualIndex < userInput.length;
+                  
+                  return (
+                    <div
+                      key={actualIndex}
+                      className={cn(
+                        "w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-500",
+                        color === 'green' 
+                          ? "bg-green-600 border-green-400 text-white" 
+                          : "bg-red-600 border-red-400 text-white",
+                        isNext && "ring-4 ring-yellow-400 ring-opacity-70 scale-110 animate-pulse",
+                        isCompleted && "opacity-60 scale-90"
+                      )}
+                    >
+                      {actualIndex + 1}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-purple-200">
+                  Survival Time: {currentScore}s | Next: {userInput.length + 1}/{pattern.length}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Memory Challenge Info - Show during waiting/playing phases for levels */}
+          {gameMode === 'levels' && (gamePhase === 'waiting' || gamePhase === 'playing') && (
             <div className="bg-slate-700 rounded-lg p-4 mb-4 border-l-4 border-purple-500">
               <h3 className="text-sm font-medium text-slate-400 mb-2">Memory Challenge</h3>
               <div className="text-center">

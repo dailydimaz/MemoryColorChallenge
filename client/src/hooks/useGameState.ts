@@ -75,11 +75,11 @@ export function useGameState() {
   
   // Timer management
   useEffect(() => {
-    if (gamePhase === 'playing' && timeRemaining > 0) {
+    if (gameMode === 'levels' && gamePhase === 'playing' && timeRemaining > 0) {
       timerRef.current = setTimeout(() => {
         setTimeRemaining(prev => prev - 1);
       }, 1000);
-    } else if (timeRemaining === 0 && gamePhase === 'playing') {
+    } else if (gameMode === 'levels' && timeRemaining === 0 && gamePhase === 'playing') {
       handleGameOver();
     }
     
@@ -88,7 +88,7 @@ export function useGameState() {
         clearTimeout(timerRef.current);
       }
     };
-  }, [gamePhase, timeRemaining]);
+  }, [gameMode, gamePhase, timeRemaining]);
   
   // Generate random pattern
   const generatePattern = useCallback((length: number): Color[] => {
@@ -106,84 +106,48 @@ export function useGameState() {
   const startNewPattern = useCallback(() => {
     if (gamePhase === 'showing' || gamePhase === 'playing') return;
     
-    const patternLength = gameMode === 'levels' 
-      ? Math.min(3 + currentLevel, 10) 
-      : Math.min(3 + Math.floor(currentScore / 100), 15);
-    
-    const newPattern = generatePattern(patternLength);
-    setPattern(newPattern);
-    setUserInput([]);
-    setPatternProgress(0);
-    setGamePhase('showing');
-    setTimeRemaining(gameMode === 'levels' ? 30 + currentLevel * 5 : 30);
-    
-    // Show pattern sequence
-    showPatternSequence(newPattern);
-  }, [gamePhase, gameMode, currentLevel, currentScore, generatePattern]);
-  
-  // Show pattern sequence with progress indicator
-  const showPatternSequence = useCallback((pattern: Color[]) => {
-    setPatternProgress(0);
-    let index = 0;
-    
-    const showNext = () => {
-      if (index >= pattern.length) {
-        setGamePhase('waiting');
-        patternTimeoutRef.current = setTimeout(() => {
-          setGamePhase('playing');
-        }, 2000); // Give more time to prepare
-        return;
-      }
+    if (gameMode === 'challenge') {
+      // Challenge mode: Start with a rolling sequence
+      const initialLength = 3;
+      const newPattern = generatePattern(initialLength);
+      setPattern(newPattern);
+      setUserInput([]);
+      setPatternProgress(0);
+      setGamePhase('showing');
+      setTimeRemaining(0); // Use score as elapsed time
+      setCurrentScore(0); // Reset score to 0 (will track time)
       
-      setPatternProgress(index + 1);
-      index++;
-      patternTimeoutRef.current = setTimeout(showNext, 800);
-    };
-    
-    showNext();
-  }, []);
-  
-  // Handle color button click
-  const handleColorClick = useCallback((color: Color) => {
-    if (gamePhase !== 'playing') return;
-    
-    const newUserInput = [...userInput, color];
-    setUserInput(newUserInput);
-    
-    // Check if input matches pattern so far
-    const isCorrect = pattern[newUserInput.length - 1] === color;
-    
-    if (!isCorrect) {
-      handleGameOver();
-      return;
-    }
-    
-    // Check if pattern is complete
-    if (newUserInput.length === pattern.length) {
-      handlePatternComplete();
-    }
-  }, [gamePhase, userInput, pattern]);
-  
-  // Handle pattern completion
-  const handlePatternComplete = useCallback(() => {
-    const baseScore = pattern.length * 10;
-    const timeMultiplier = Math.max(0.5, timeRemaining / 30);
-    const levelMultiplier = gameMode === 'levels' ? currentLevel : Math.floor(currentScore / 100) + 1;
-    const earnedScore = Math.round(baseScore * timeMultiplier * levelMultiplier);
-    
-    setCurrentScore(prev => prev + earnedScore);
-    setGamePhase('complete');
-    
-    if (gameMode === 'levels') {
-      handleLevelComplete(earnedScore);
+      // Show pattern sequence
+      showPatternSequence(newPattern);
     } else {
-      // In challenge mode, automatically start next pattern
-      setTimeout(() => {
-        startNewPattern();
-      }, 1500);
+      // Levels mode
+      const patternLength = Math.min(3 + currentLevel, 10);
+      const newPattern = generatePattern(patternLength);
+      setPattern(newPattern);
+      setUserInput([]);
+      setPatternProgress(0);
+      setGamePhase('showing');
+      setTimeRemaining(30 + currentLevel * 5);
+      
+      // Show pattern sequence
+      showPatternSequence(newPattern);
     }
-  }, [pattern.length, timeRemaining, gameMode, currentLevel, currentScore, startNewPattern]);
+  }, [gamePhase, gameMode, currentLevel, generatePattern]);
   
+
+
+  // Handle game over (levels mode)
+  const handleGameOver = useCallback(() => {
+    setGamePhase('failed');
+    setFinalScore(currentScore);
+    setLevelsCompleted(unlockedLevels - 1);
+    setIsGameOverModalOpen(true);
+    
+    // Clear any running timers
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
+  }, [currentScore, unlockedLevels]);
+
   // Handle level completion
   const handleLevelComplete = useCallback((earnedScore: number) => {
     const newSecretCode = generateSecretCode();
@@ -207,18 +171,93 @@ export function useGameState() {
       description: `Secret code: ${newSecretCode}`,
     });
   }, [currentLevel, unlockedLevels, timeRemaining, levelCodes, generateSecretCode, toast]);
-  
-  // Handle game over
-  const handleGameOver = useCallback(() => {
-    setGamePhase('failed');
-    setFinalScore(currentScore);
-    setLevelsCompleted(unlockedLevels - 1);
-    setIsGameOverModalOpen(true);
+
+  // Handle pattern completion
+  const handlePatternComplete = useCallback(() => {
+    const baseScore = pattern.length * 10;
+    const timeMultiplier = Math.max(0.5, timeRemaining / 30);
+    const levelMultiplier = gameMode === 'levels' ? currentLevel : Math.floor(currentScore / 100) + 1;
+    const earnedScore = Math.round(baseScore * timeMultiplier * levelMultiplier);
     
-    // Clear any running timers
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
-  }, [currentScore, unlockedLevels]);
+    setCurrentScore(prev => prev + earnedScore);
+    setGamePhase('complete');
+    
+    if (gameMode === 'levels') {
+      handleLevelComplete(earnedScore);
+    } else {
+      // In challenge mode, automatically start next pattern
+      setTimeout(() => {
+        startNewPattern();
+      }, 1500);
+    }
+  }, [pattern.length, timeRemaining, gameMode, currentLevel, currentScore, startNewPattern, handleLevelComplete]);
+
+  // Show pattern sequence with progress indicator (for levels mode)
+  const showPatternSequence = useCallback((pattern: Color[]) => {
+    setPatternProgress(0);
+    let index = 0;
+    
+    const showNext = () => {
+      if (index >= pattern.length) {
+        setGamePhase('waiting');
+        patternTimeoutRef.current = setTimeout(() => {
+          setGamePhase('playing');
+        }, 2000);
+        return;
+      }
+      
+      setPatternProgress(index + 1);
+      index++;
+      patternTimeoutRef.current = setTimeout(showNext, 800);
+    };
+    
+    showNext();
+  }, []);
+  
+  // Handle color button click
+  const handleColorClick = useCallback((color: Color) => {
+    if (gamePhase !== 'playing') return;
+    
+    if (gameMode === 'challenge') {
+      // Challenge mode: For now, use similar logic to levels but continuous
+      const newUserInput = [...userInput, color];
+      setUserInput(newUserInput);
+      
+      // Check if input matches pattern so far
+      const isCorrect = pattern[newUserInput.length - 1] === color;
+      
+      if (!isCorrect) {
+        handleGameOver();
+        return;
+      }
+      
+      // In challenge mode, keep adding to the pattern when completed
+      if (newUserInput.length === pattern.length) {
+        // Add a new color and continue
+        const nextColor = generatePattern(1)[0];
+        setPattern(prev => [...prev, nextColor]);
+        setCurrentScore(prev => prev + 10);
+        // Don't reset userInput, continue building the sequence
+      }
+    } else {
+      // Levels mode logic
+      const newUserInput = [...userInput, color];
+      setUserInput(newUserInput);
+      
+      // Check if input matches pattern so far
+      const isCorrect = pattern[newUserInput.length - 1] === color;
+      
+      if (!isCorrect) {
+        handleGameOver();
+        return;
+      }
+      
+      // Check if pattern is complete
+      if (newUserInput.length === pattern.length) {
+        handlePatternComplete();
+      }
+    }
+  }, [gamePhase, gameMode, userInput, pattern, generatePattern, handleGameOver, handlePatternComplete]);
   
   // Restart game
   const restartGame = useCallback(() => {
@@ -341,6 +380,8 @@ export function useGameState() {
     secretCode,
     setSecretCode,
     levelCodes,
+    
+
     
     // Modal states
     isGameOverModalOpen,
