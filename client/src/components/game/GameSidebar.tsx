@@ -31,7 +31,7 @@ export default function GameSidebar({ gameState }: GameSidebarProps) {
   const levels = Array.from({ length: maxLevel }, (_, i) => i + 1);
 
   return (
-    <div className="w-80 bg-slate-800 border-l border-slate-700 p-6 overflow-y-auto">
+    <div className="w-full lg:w-80 bg-slate-800 border-t lg:border-t-0 lg:border-l border-slate-700 p-4 lg:p-6 overflow-y-auto">
       {/* Level Selection */}
       <div className="mb-8">
         <h3 className="text-lg font-semibold mb-4 flex items-center text-slate-50">

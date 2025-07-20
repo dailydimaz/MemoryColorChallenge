@@ -11,7 +11,7 @@ export default function Game() {
     <div className="min-h-screen flex flex-col bg-slate-900 text-slate-50">
       <GameHeader gameState={gameState} />
       
-      <main className="flex-1 flex">
+      <main className="flex-1 flex flex-col lg:flex-row">
         <GameBoard gameState={gameState} />
         <GameSidebar gameState={gameState} />
       </main>

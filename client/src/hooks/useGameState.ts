@@ -20,6 +20,7 @@ export function useGameState() {
   const [timeRemaining, setTimeRemaining] = useState(30);
   const [pattern, setPattern] = useState<Color[]>([]);
   const [userInput, setUserInput] = useState<Color[]>([]);
+  const [patternProgress, setPatternProgress] = useState(0);
   const [unlockedLevels, setUnlockedLevels] = useState(1);
   const [secretCode, setSecretCode] = useState('');
   const [levelCodes, setLevelCodes] = useState<Record<number, string>>({});
@@ -112,6 +113,7 @@ export function useGameState() {
     const newPattern = generatePattern(patternLength);
     setPattern(newPattern);
     setUserInput([]);
+    setPatternProgress(0);
     setGamePhase('showing');
     setTimeRemaining(gameMode === 'levels' ? 30 + currentLevel * 5 : 30);
     
@@ -119,8 +121,9 @@ export function useGameState() {
     showPatternSequence(newPattern);
   }, [gamePhase, gameMode, currentLevel, currentScore, generatePattern]);
   
-  // Show pattern sequence with visual feedback
+  // Show pattern sequence with progress indicator
   const showPatternSequence = useCallback((pattern: Color[]) => {
+    setPatternProgress(0);
     let index = 0;
     
     const showNext = () => {
@@ -132,21 +135,9 @@ export function useGameState() {
         return;
       }
       
-      const color = pattern[index];
-      const button = document.querySelector(`[data-color="${color}"]`) as HTMLElement;
-      
-      if (button) {
-        button.style.transform = 'scale(1.1)';
-        button.style.filter = 'brightness(1.5)';
-        
-        setTimeout(() => {
-          button.style.transform = '';
-          button.style.filter = '';
-        }, 400);
-      }
-      
+      setPatternProgress(index + 1);
       index++;
-      patternTimeoutRef.current = setTimeout(showNext, 600);
+      patternTimeoutRef.current = setTimeout(showNext, 800);
     };
     
     showNext();
@@ -345,6 +336,7 @@ export function useGameState() {
     timeRemaining,
     pattern,
     userInput,
+    patternProgress,
     unlockedLevels,
     secretCode,
     setSecretCode,
