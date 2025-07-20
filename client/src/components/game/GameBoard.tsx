@@ -17,7 +17,10 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     showInstructions,
     pattern,
     userInput,
-    currentScore
+    currentScore,
+    challengePhase,
+    challengeGuessTimer,
+    challengeCurrentIndex
   } = gameState;
 
   const getPhaseText = () => {
@@ -105,36 +108,61 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             </div>
           )}
 
-          {/* Challenge Mode Rolling Sequence */}
-          {gameMode === 'challenge' && gamePhase === 'playing' && (
+          {/* Challenge Mode Display */}
+          {gameMode === 'challenge' && gamePhase === 'showing' && challengePhase === 'showing' && (
             <div className="bg-gradient-to-r from-purple-700 to-blue-700 rounded-lg p-4 mb-4 border-2 border-purple-500">
-              <h3 className="text-sm font-medium text-white mb-3">Rolling Sequence - Remember & Click in Order:</h3>
+              <h3 className="text-sm font-medium text-white mb-3">Challenge Mode - Memorize this sequence:</h3>
               <div className="flex flex-wrap justify-center gap-2 mb-3">
-                {pattern.slice(-4).map((color, index) => {
-                  const actualIndex = Math.max(0, pattern.length - 4) + index;
-                  const isNext = actualIndex === userInput.length;
-                  const isCompleted = actualIndex < userInput.length;
-                  
-                  return (
-                    <div
-                      key={actualIndex}
-                      className={cn(
-                        "w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-500",
-                        color === 'green' 
-                          ? "bg-green-600 border-green-400 text-white" 
-                          : "bg-red-600 border-red-400 text-white",
-                        isNext && "ring-4 ring-yellow-400 ring-opacity-70 scale-110 animate-pulse",
-                        isCompleted && "opacity-60 scale-90"
-                      )}
-                    >
-                      {actualIndex + 1}
-                    </div>
-                  );
-                })}
+                {pattern.map((color, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-500",
+                      color === 'green' 
+                        ? "bg-green-600 border-green-400 text-white" 
+                        : "bg-red-600 border-red-400 text-white",
+                      index < patternProgress && "ring-4 ring-yellow-400 ring-opacity-70 scale-110"
+                    )}
+                  >
+                    {index + 1}
+                  </div>
+                ))}
               </div>
               <div className="text-center">
                 <div className="text-xs text-purple-200">
-                  Survival Time: {currentScore}s | Next: {userInput.length + 1}/{pattern.length}
+                  Sequence Length: {pattern.length} | Score: {currentScore} points
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Challenge Mode Guessing Phase */}
+          {gameMode === 'challenge' && gamePhase === 'playing' && challengePhase === 'guessing' && (
+            <div className="bg-gradient-to-r from-red-700 to-orange-700 rounded-lg p-4 mb-4 border-2 border-red-500">
+              <h3 className="text-sm font-medium text-white mb-3">GUESSING PHASE - Pattern Hidden!</h3>
+              <div className="flex flex-wrap justify-center gap-2 mb-3">
+                {pattern.map((_, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
+                      index === challengeCurrentIndex 
+                        ? "bg-yellow-500 border-yellow-400 text-black ring-4 ring-yellow-300 animate-pulse" 
+                        : index < challengeCurrentIndex
+                        ? "bg-green-600 border-green-400 text-white"
+                        : "bg-gray-600 border-gray-500 text-gray-400"
+                    )}
+                  >
+                    {index + 1}
+                  </div>
+                ))}
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-yellow-300 mb-1">
+                  ⏰ {challengeGuessTimer} seconds left!
+                </div>
+                <div className="text-xs text-orange-200">
+                  Click position {challengeCurrentIndex + 1} | Score: {currentScore} points
                 </div>
               </div>
             </div>

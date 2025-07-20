@@ -25,6 +25,11 @@ export function useGameState() {
   const [secretCode, setSecretCode] = useState('');
   const [levelCodes, setLevelCodes] = useState<Record<number, string>>({});
   
+  // Challenge mode state
+  const [challengePhase, setChallengePhase] = useState<'showing' | 'guessing'>('showing');
+  const [challengeGuessTimer, setChallengeGuessTimer] = useState(3);
+  const [challengeCurrentIndex, setChallengeCurrentIndex] = useState(0);
+  
   // Modal states
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
   const [isLevelCompleteModalOpen, setIsLevelCompleteModalOpen] = useState(false);
@@ -107,18 +112,22 @@ export function useGameState() {
     if (gamePhase === 'showing' || gamePhase === 'playing') return;
     
     if (gameMode === 'challenge') {
-      // Challenge mode: Start with a rolling sequence
-      const initialLength = 3;
-      const newPattern = generatePattern(initialLength);
+      // Challenge mode: Start with 3 colors or add one more
+      const startLength = pattern.length === 0 ? 3 : pattern.length + 1;
+      const newPattern = generatePattern(startLength);
       setPattern(newPattern);
       setUserInput([]);
-      setPatternProgress(0);
+      setChallengeCurrentIndex(0);
+      setChallengePhase('showing');
       setGamePhase('showing');
-      setTimeRemaining(0); // Use score as elapsed time
-      setCurrentScore(0); // Reset score to 0 (will track time)
+      if (pattern.length > 0) {
+        setCurrentScore(prev => prev + 10); // Add points for completing previous round
+      } else {
+        setCurrentScore(0); // Reset for new game
+      }
       
-      // Show pattern sequence
-      showPatternSequence(newPattern);
+      // Show challenge pattern then hide it
+      showChallengePattern(newPattern);
     } else {
       // Levels mode
       const patternLength = Math.min(3 + currentLevel, 10);
@@ -213,31 +222,79 @@ export function useGameState() {
     
     showNext();
   }, []);
+
+  // Show challenge pattern then start guessing phase
+  const showChallengePattern = useCallback((pattern: Color[]) => {
+    setPatternProgress(0);
+    let index = 0;
+    
+    const showNext = () => {
+      if (index >= pattern.length) {
+        // Pattern shown, now hide it and start guessing
+        setChallengePhase('guessing');
+        setGamePhase('playing');
+        setChallengeGuessTimer(3);
+        startChallengeGuessTimer();
+        return;
+      }
+      
+      setPatternProgress(index + 1);
+      index++;
+      patternTimeoutRef.current = setTimeout(showNext, 800);
+    };
+    
+    showNext();
+  }, []);
+
+  // Start the 3-second timer for challenge mode guessing
+  const startChallengeGuessTimer = useCallback(() => {
+    setChallengeGuessTimer(3);
+    
+    const countdown = () => {
+      setChallengeGuessTimer(prev => {
+        if (prev <= 1) {
+          // Time's up - game over
+          handleGameOver();
+          return 0;
+        }
+        timerRef.current = setTimeout(countdown, 1000);
+        return prev - 1;
+      });
+    };
+    
+    timerRef.current = setTimeout(countdown, 1000);
+  }, [handleGameOver]);
   
   // Handle color button click
   const handleColorClick = useCallback((color: Color) => {
     if (gamePhase !== 'playing') return;
     
     if (gameMode === 'challenge') {
-      // Challenge mode: For now, use similar logic to levels but continuous
-      const newUserInput = [...userInput, color];
-      setUserInput(newUserInput);
+      // Challenge mode: User must guess the current position in sequence
+      const expectedColor = pattern[challengeCurrentIndex];
       
-      // Check if input matches pattern so far
-      const isCorrect = pattern[newUserInput.length - 1] === color;
-      
-      if (!isCorrect) {
+      if (color === expectedColor) {
+        // Correct guess - advance to next position
+        setChallengeCurrentIndex(prev => prev + 1);
+        
+        // Clear the timer for this guess
+        if (timerRef.current) clearTimeout(timerRef.current);
+        
+        // Check if pattern is complete
+        if (challengeCurrentIndex + 1 >= pattern.length) {
+          // Pattern complete - start next round
+          setTimeout(() => {
+            startNewPattern();
+          }, 1000);
+        } else {
+          // Start timer for next guess
+          setChallengeGuessTimer(3);
+          startChallengeGuessTimer();
+        }
+      } else {
+        // Wrong guess - game over
         handleGameOver();
         return;
-      }
-      
-      // In challenge mode, keep adding to the pattern when completed
-      if (newUserInput.length === pattern.length) {
-        // Add a new color and continue
-        const nextColor = generatePattern(1)[0];
-        setPattern(prev => [...prev, nextColor]);
-        setCurrentScore(prev => prev + 10);
-        // Don't reset userInput, continue building the sequence
       }
     } else {
       // Levels mode logic
@@ -381,7 +438,10 @@ export function useGameState() {
     setSecretCode,
     levelCodes,
     
-
+    // Challenge mode state
+    challengePhase,
+    challengeGuessTimer,
+    challengeCurrentIndex,
     
     // Modal states
     isGameOverModalOpen,
