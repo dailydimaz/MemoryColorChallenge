@@ -22,13 +22,17 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const getPhaseText = () => {
     switch (gamePhase) {
       case 'showing':
-        return 'Watch carefully as the colors light up...';
+        return 'Study the sequence carefully - it will disappear!';
       case 'waiting':
-        return 'Get ready to repeat the pattern!';
+        return 'Sequence hidden - get ready to repeat it from memory!';
       case 'playing':
-        return 'Click the colors in the correct order!';
+        return 'Now click the colors in the exact same order!';
+      case 'complete':
+        return 'Perfect! You remembered the sequence!';
+      case 'failed':
+        return 'Oops! Try to memorize the pattern better next time.';
       default:
-        return 'Ready to start?';
+        return 'Ready to test your memory?';
     }
   };
 
@@ -72,32 +76,53 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           <h2 className="text-xl font-semibold mb-4">Remember the pattern!</h2>
           <p className="text-slate-400 mb-4">{getPhaseText()}</p>
           
-          {/* Pattern Sequence Display */}
-          {(gamePhase === 'showing' || gamePhase === 'waiting' || gamePhase === 'playing') && pattern.length > 0 && (
+          {/* Pattern Sequence Display - Only show during 'showing' phase */}
+          {gamePhase === 'showing' && pattern.length > 0 && (
             <div className="bg-slate-700 rounded-lg p-4 mb-4">
-              <h3 className="text-sm font-medium text-slate-400 mb-3">Pattern Sequence:</h3>
+              <h3 className="text-sm font-medium text-slate-400 mb-3">Memorize this sequence:</h3>
               <div className="flex flex-wrap justify-center gap-2">
                 {pattern.map((color, index) => (
                   <div
                     key={index}
                     className={cn(
-                      "w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold",
+                      "w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
                       color === 'green' 
                         ? "bg-green-600 border-green-500 text-white" 
                         : "bg-red-600 border-red-500 text-white",
-                      gamePhase === 'showing' && index < patternProgress && "ring-2 ring-yellow-400",
-                      gamePhase === 'playing' && index < userInput.length && "opacity-50"
+                      index < patternProgress && "ring-4 ring-yellow-400 ring-opacity-70 scale-110"
                     )}
                   >
                     {index + 1}
                   </div>
                 ))}
               </div>
-              {gamePhase === 'playing' && (
-                <div className="text-xs text-slate-400 mt-2">
-                  Progress: {userInput.length}/{pattern.length}
+              <div className="text-center mt-3">
+                <div className="text-sm text-yellow-400 font-medium">
+                  Step {patternProgress} of {pattern.length}
                 </div>
-              )}
+              </div>
+            </div>
+          )}
+
+          {/* Memory Challenge Info - Show during waiting/playing phases */}
+          {(gamePhase === 'waiting' || gamePhase === 'playing') && (
+            <div className="bg-slate-700 rounded-lg p-4 mb-4 border-l-4 border-purple-500">
+              <h3 className="text-sm font-medium text-slate-400 mb-2">Memory Challenge</h3>
+              <div className="text-center">
+                <div className="text-lg font-bold text-purple-400 mb-1">
+                  {pattern.length} step sequence
+                </div>
+                {gamePhase === 'waiting' && (
+                  <div className="text-sm text-yellow-400 font-medium animate-pulse">
+                    Pattern hidden - prepare to click!
+                  </div>
+                )}
+                {gamePhase === 'playing' && (
+                  <div className="text-sm text-slate-400">
+                    Progress: {userInput.length}/{pattern.length} clicks
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -160,10 +185,10 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           <Button
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-medium"
             onClick={startNewPattern}
-            disabled={gamePhase === 'showing' || gamePhase === 'playing'}
+            disabled={gamePhase === 'showing' || gamePhase === 'playing' || gamePhase === 'waiting'}
           >
             <Play className="mr-2" size={16} />
-            Start Pattern
+            {gamePhase === 'idle' ? 'Start Memory Test' : 'Start New Pattern'}
           </Button>
           <Button
             variant="outline"

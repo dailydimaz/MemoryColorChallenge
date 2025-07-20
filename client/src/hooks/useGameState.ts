@@ -131,7 +131,7 @@ export function useGameState() {
         setGamePhase('waiting');
         patternTimeoutRef.current = setTimeout(() => {
           setGamePhase('playing');
-        }, 1000);
+        }, 2000); // Give more time to prepare
         return;
       }
       
