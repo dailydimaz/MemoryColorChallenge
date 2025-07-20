@@ -16,7 +16,8 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     startNewPattern,
     showInstructions,
     pattern,
-    userInput
+    userInput,
+    currentScore
   } = gameState;
 
   const getPhaseText = () => {
