@@ -28,7 +28,8 @@ export default function GameModals({ gameState }: GameModalsProps) {
     totalScore,
     restartGame,
     nextLevel,
-    submitScore
+    submitScore,
+    gameMode
   } = gameState;
 
   const [playerName, setPlayerName] = useState("");
@@ -61,23 +62,35 @@ export default function GameModals({ gameState }: GameModalsProps) {
         <DialogContent className="bg-slate-800 border-slate-700 text-slate-50 max-w-md">
           <DialogHeader>
             <div className="text-center">
-              <div className="text-6xl mb-4">😞</div>
-              <DialogTitle className="text-2xl font-bold mb-4">Game Over!</DialogTitle>
+              <div className="text-6xl mb-4">{gameMode === 'challenge' ? '⏰' : '😞'}</div>
+              <DialogTitle className="text-2xl font-bold mb-4">
+                {gameMode === 'challenge' ? 'Challenge Ended!' : 'Game Over!'}
+              </DialogTitle>
             </div>
           </DialogHeader>
           
           <Card className="bg-slate-700 border-slate-600">
             <CardContent className="p-4">
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div>
-                  <div className="text-2xl font-bold text-blue-400">{finalScore}</div>
-                  <div className="text-sm text-slate-400">Final Score</div>
+              {gameMode === 'challenge' ? (
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-yellow-400 mb-2">{finalScore} seconds</div>
+                  <div className="text-sm text-slate-400">Survival Time</div>
+                  <div className="text-xs text-slate-500 mt-2">
+                    You survived the rolling sequence challenge!
+                  </div>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-purple-400">{levelsCompleted}</div>
-                  <div className="text-sm text-slate-400">Levels Completed</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-blue-400">{finalScore}</div>
+                    <div className="text-sm text-slate-400">Final Score</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-purple-400">{levelsCompleted}</div>
+                    <div className="text-sm text-slate-400">Levels Completed</div>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
           

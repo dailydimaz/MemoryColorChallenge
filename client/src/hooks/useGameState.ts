@@ -29,6 +29,9 @@ export function useGameState() {
   const [challengePhase, setChallengePhase] = useState<'showing' | 'guessing'>('showing');
   const [challengeGuessTimer, setChallengeGuessTimer] = useState(3);
   const [challengeCurrentIndex, setChallengeCurrentIndex] = useState(0);
+  const [challengeSequence, setChallengeSequence] = useState<Color[]>([]);
+  const [challengeStartTime, setChallengeStartTime] = useState(0);
+  const [challengeVisibleColors, setChallengeVisibleColors] = useState<Color[]>([]);
   
   // Modal states
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
@@ -108,27 +111,138 @@ export function useGameState() {
     return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
   }, []);
   
+  // Show pattern sequence with progress indicator (for levels mode)
+  const showPatternSequence = useCallback((pattern: Color[]) => {
+    setPatternProgress(0);
+    let index = 0;
+    
+    const showNext = () => {
+      if (index >= pattern.length) {
+        setGamePhase('waiting');
+        patternTimeoutRef.current = setTimeout(() => {
+          setGamePhase('playing');
+        }, 2000);
+        return;
+      }
+      
+      setPatternProgress(index + 1);
+      index++;
+      patternTimeoutRef.current = setTimeout(showNext, 800);
+    };
+    
+    showNext();
+  }, []);
+  
+  // Handle game over
+  const handleGameOver = useCallback(() => {
+    setGamePhase('failed');
+    
+    if (gameMode === 'challenge') {
+      // Calculate survival time in seconds
+      const survivalTime = Math.floor((Date.now() - challengeStartTime) / 1000);
+      setFinalScore(survivalTime);
+      setCurrentScore(survivalTime);
+    } else {
+      // Levels mode
+      setFinalScore(currentScore);
+      setLevelsCompleted(unlockedLevels - 1);
+    }
+    
+    setIsGameOverModalOpen(true);
+    
+    // Clear any running timers
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
+  }, [gameMode, currentScore, unlockedLevels, challengeStartTime]);
+  
+  // Start the 3-second timer for challenge mode guessing
+  const startChallengeGuessTimer = useCallback(() => {
+    // Clear any existing timer
+    if (timerRef.current) clearTimeout(timerRef.current);
+    
+    setChallengeGuessTimer(3);
+    
+    const countdown = () => {
+      setChallengeGuessTimer(prev => {
+        if (prev <= 1) {
+          // Time's up - game over
+          handleGameOver();
+          return 0;
+        }
+        timerRef.current = setTimeout(countdown, 1000);
+        return prev - 1;
+      });
+    };
+    
+    // Start countdown immediately, then continue every second
+    countdown();
+  }, [handleGameOver]);
+  
+  // Start rolling sequence for challenge mode
+  const startRollingSequence = useCallback((sequence: Color[]) => {
+    setGamePhase('playing');
+    setChallengePhase('guessing');
+    setChallengeCurrentIndex(0);
+    
+    // Hide the first color and start guessing timer
+    const visibleColors = sequence.slice(1);
+    setChallengeVisibleColors(visibleColors);
+    
+    // Start 3-second timer for first guess
+    setChallengeGuessTimer(3);
+    startChallengeGuessTimer();
+  }, [startChallengeGuessTimer]);
+
+  // Continue rolling sequence after correct guess
+  const continueRollingSequence = useCallback(() => {
+    const currentSequence = [...challengeSequence];
+    const nextIndex = challengeCurrentIndex + 1;
+    
+    // Add 1-2 new colors to keep the sequence growing
+    const newColor1 = generatePattern(1)[0];
+    const newColor2 = generatePattern(1)[0];
+    currentSequence.push(newColor1, newColor2);
+    setChallengeSequence(currentSequence);
+    
+    // Update visible colors (hide the current guess position, show the rest)
+    // Always ensure at least 2-3 colors are visible for context
+    const minVisibleStart = Math.max(0, nextIndex + 1);
+    const visibleColors = currentSequence.slice(minVisibleStart);
+    setChallengeVisibleColors(visibleColors);
+    
+    // Move to next position
+    setChallengeCurrentIndex(nextIndex);
+    
+    // Start timer for next guess
+    setChallengeGuessTimer(3);
+    startChallengeGuessTimer();
+  }, [challengeSequence, challengeCurrentIndex, generatePattern, startChallengeGuessTimer]);
+
   // Start new pattern
   const startNewPattern = useCallback(() => {
     if (gamePhase === 'showing' || gamePhase === 'playing') return;
     
+    // Clear any existing timers
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
+    
     if (gameMode === 'challenge') {
-      // Challenge mode: Start with 3 colors or add one more
-      const startLength = pattern.length === 0 ? 3 : pattern.length + 1;
-      const newPattern = generatePattern(startLength);
-      setPattern(newPattern);
-      setUserInput([]);
+      // New rolling sequence challenge mode
+      setCurrentScore(0);
       setChallengeCurrentIndex(0);
-      setChallengePhase('showing');
+      setChallengeStartTime(Date.now());
       setGamePhase('showing');
-      if (pattern.length > 0) {
-        setCurrentScore(prev => prev + 10); // Add points for completing previous round
-      } else {
-        setCurrentScore(0); // Reset for new game
-      }
       
-      // Show challenge pattern then hide it
-      showChallengePattern(newPattern);
+      // Start with initial sequence of 4 colors
+      const initialSequence = generatePattern(4);
+      setChallengeSequence(initialSequence);
+      setChallengeVisibleColors([...initialSequence]);
+      
+      // Start the rolling sequence after a brief showing period
+      patternTimeoutRef.current = setTimeout(() => {
+        startRollingSequence(initialSequence);
+      }, 2000); // Show initial pattern for 2 seconds
+      
     } else {
       // Levels mode
       const patternLength = Math.min(3 + currentLevel, 10);
@@ -142,21 +256,7 @@ export function useGameState() {
       // Show pattern sequence
       showPatternSequence(newPattern);
     }
-  }, [gamePhase, gameMode, currentLevel, generatePattern]);
-  
-
-
-  // Handle game over (levels mode)
-  const handleGameOver = useCallback(() => {
-    setGamePhase('failed');
-    setFinalScore(currentScore);
-    setLevelsCompleted(unlockedLevels - 1);
-    setIsGameOverModalOpen(true);
-    
-    // Clear any running timers
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
-  }, [currentScore, unlockedLevels]);
+  }, [gamePhase, gameMode, currentLevel, generatePattern, startRollingSequence, showPatternSequence]);
 
   // Handle level completion
   const handleLevelComplete = useCallback((earnedScore: number) => {
@@ -202,96 +302,28 @@ export function useGameState() {
     }
   }, [pattern.length, timeRemaining, gameMode, currentLevel, currentScore, startNewPattern, handleLevelComplete]);
 
-  // Show pattern sequence with progress indicator (for levels mode)
-  const showPatternSequence = useCallback((pattern: Color[]) => {
-    setPatternProgress(0);
-    let index = 0;
-    
-    const showNext = () => {
-      if (index >= pattern.length) {
-        setGamePhase('waiting');
-        patternTimeoutRef.current = setTimeout(() => {
-          setGamePhase('playing');
-        }, 2000);
-        return;
-      }
-      
-      setPatternProgress(index + 1);
-      index++;
-      patternTimeoutRef.current = setTimeout(showNext, 800);
-    };
-    
-    showNext();
-  }, []);
-
-  // Show challenge pattern then start guessing phase
-  const showChallengePattern = useCallback((pattern: Color[]) => {
-    setPatternProgress(0);
-    let index = 0;
-    
-    const showNext = () => {
-      if (index >= pattern.length) {
-        // Pattern shown, now hide it and start guessing
-        setChallengePhase('guessing');
-        setGamePhase('playing');
-        setChallengeGuessTimer(3);
-        startChallengeGuessTimer();
-        return;
-      }
-      
-      setPatternProgress(index + 1);
-      index++;
-      patternTimeoutRef.current = setTimeout(showNext, 800);
-    };
-    
-    showNext();
-  }, []);
-
-  // Start the 3-second timer for challenge mode guessing
-  const startChallengeGuessTimer = useCallback(() => {
-    setChallengeGuessTimer(3);
-    
-    const countdown = () => {
-      setChallengeGuessTimer(prev => {
-        if (prev <= 1) {
-          // Time's up - game over
-          handleGameOver();
-          return 0;
-        }
-        timerRef.current = setTimeout(countdown, 1000);
-        return prev - 1;
-      });
-    };
-    
-    timerRef.current = setTimeout(countdown, 1000);
-  }, [handleGameOver]);
-  
   // Handle color button click
   const handleColorClick = useCallback((color: Color) => {
     if (gamePhase !== 'playing') return;
     
     if (gameMode === 'challenge') {
-      // Challenge mode: User must guess the current position in sequence
-      const expectedColor = pattern[challengeCurrentIndex];
+      // New rolling sequence challenge mode
+      const expectedColor = challengeSequence[challengeCurrentIndex];
       
       if (color === expectedColor) {
-        // Correct guess - advance to next position
-        setChallengeCurrentIndex(prev => prev + 1);
-        
+        // Correct guess!
         // Clear the timer for this guess
         if (timerRef.current) clearTimeout(timerRef.current);
         
-        // Check if pattern is complete
-        if (challengeCurrentIndex + 1 >= pattern.length) {
-          // Pattern complete - start next round
-          setTimeout(() => {
-            startNewPattern();
-          }, 1000);
-        } else {
-          // Start timer for next guess
-          setChallengeGuessTimer(3);
-          startChallengeGuessTimer();
-        }
+        // Update score with survival time
+        const survivalTime = Math.floor((Date.now() - challengeStartTime) / 1000);
+        setCurrentScore(survivalTime);
+        
+        // Continue the rolling sequence
+        patternTimeoutRef.current = setTimeout(() => {
+          continueRollingSequence();
+        }, 500); // Brief pause before next round
+        
       } else {
         // Wrong guess - game over
         handleGameOver();
@@ -315,7 +347,7 @@ export function useGameState() {
         handlePatternComplete();
       }
     }
-  }, [gamePhase, gameMode, userInput, pattern, generatePattern, handleGameOver, handlePatternComplete]);
+  }, [gamePhase, gameMode, userInput, pattern, challengeSequence, challengeCurrentIndex, challengeStartTime, handleGameOver, handlePatternComplete, continueRollingSequence]);
   
   // Restart game
   const restartGame = useCallback(() => {
@@ -326,9 +358,21 @@ export function useGameState() {
     setTimeRemaining(30);
     setIsGameOverModalOpen(false);
     
+    // Clear challenge mode state
+    setChallengeSequence([]);
+    setChallengeVisibleColors([]);
+    setChallengeCurrentIndex(0);
+    setChallengePhase('showing');
+    setChallengeGuessTimer(3);
+    setChallengeStartTime(0);
+    
     if (gameMode === 'levels') {
       setCurrentLevel(1);
     }
+    
+    // Clear any running timers
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
   }, [gameMode]);
   
   // Next level
@@ -410,7 +454,7 @@ export function useGameState() {
       return submitScoreMutation.mutateAsync({
         playerName: sanitizedName,
         score: currentScore,
-        level: gameMode === 'levels' ? currentLevel : Math.floor(currentScore / 100),
+        level: gameMode === 'levels' ? currentLevel : Math.max(1, Math.floor(currentScore / 10)),
         timeCompleted: Date.now(),
       });
     }
@@ -450,6 +494,8 @@ export function useGameState() {
     challengePhase,
     challengeGuessTimer,
     challengeCurrentIndex,
+    challengeSequence,
+    challengeVisibleColors,
     
     // Modal states
     isGameOverModalOpen,

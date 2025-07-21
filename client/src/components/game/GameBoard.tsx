@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Play, HelpCircle, Infinity, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type Color = 'green' | 'red';
+
 interface GameBoardProps {
   gameState: any;
 }
@@ -20,27 +22,44 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     currentScore,
     challengePhase,
     challengeGuessTimer,
-    challengeCurrentIndex
+    challengeCurrentIndex,
+    challengeSequence,
+    challengeVisibleColors
   } = gameState;
 
   const getPhaseText = () => {
-    switch (gamePhase) {
-      case 'showing':
-        return 'Study the sequence carefully - it will disappear!';
-      case 'waiting':
-        return 'Sequence hidden - get ready to repeat it from memory!';
-      case 'playing':
-        return 'Now click the colors in the exact same order!';
-      case 'complete':
-        return 'Perfect! You remembered the sequence!';
-      case 'failed':
-        return 'Oops! Try to memorize the pattern better next time.';
-      default:
-        return 'Ready to test your memory?';
+    if (gameMode === 'challenge') {
+      switch (gamePhase) {
+        case 'showing':
+          return 'Memorize the initial sequence - the rolling challenge begins soon!';
+        case 'playing':
+          return `Guess the hidden color! ${challengeGuessTimer} seconds remaining`;
+        case 'failed':
+          return `Challenge ended! You survived ${currentScore} seconds`;
+        default:
+          return 'Ready for the rolling sequence challenge?';
+      }
+    } else {
+      switch (gamePhase) {
+        case 'showing':
+          return 'Study the sequence carefully - it will disappear!';
+        case 'waiting':
+          return 'Sequence hidden - get ready to repeat it from memory!';
+        case 'playing':
+          return 'Now click the colors in the exact same order!';
+        case 'complete':
+          return 'Perfect! You remembered the sequence!';
+        case 'failed':
+          return 'Oops! Try to memorize the pattern better next time.';
+        default:
+          return 'Ready to test your memory?';
+      }
     }
   };
 
-  const progressWidth = pattern.length > 0 ? (userInput.length / pattern.length) * 100 : 0;
+  const progressWidth = gameMode === 'challenge' 
+    ? 0 // No progress bar for challenge mode
+    : pattern.length > 0 ? (userInput.length / pattern.length) * 100 : 0;
 
   return (
     <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
@@ -85,7 +104,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             <div className="bg-slate-700 rounded-lg p-4 mb-4">
               <h3 className="text-sm font-medium text-slate-400 mb-3">Memorize this sequence:</h3>
               <div className="flex flex-wrap justify-center gap-2">
-                {pattern.map((color, index) => (
+                {pattern.map((color: Color, index: number) => (
                   <div
                     key={index}
                     className={cn(
@@ -108,20 +127,19 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             </div>
           )}
 
-          {/* Challenge Mode Display */}
-          {gameMode === 'challenge' && gamePhase === 'showing' && challengePhase === 'showing' && (
+          {/* Challenge Mode - Initial Showing */}
+          {gameMode === 'challenge' && gamePhase === 'showing' && challengeSequence.length > 0 && (
             <div className="bg-gradient-to-r from-purple-700 to-blue-700 rounded-lg p-4 mb-4 border-2 border-purple-500">
-              <h3 className="text-sm font-medium text-white mb-3">Challenge Mode - Memorize this sequence:</h3>
+              <h3 className="text-sm font-medium text-white mb-3">Rolling Sequence Challenge - Memorize the initial pattern:</h3>
               <div className="flex flex-wrap justify-center gap-2 mb-3">
-                {pattern.map((color, index) => (
+                {challengeSequence.map((color: Color, index: number) => (
                   <div
                     key={index}
                     className={cn(
                       "w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-500",
                       color === 'green' 
                         ? "bg-green-600 border-green-400 text-white" 
-                        : "bg-red-600 border-red-400 text-white",
-                      index < patternProgress && "ring-4 ring-yellow-400 ring-opacity-70 scale-110"
+                        : "bg-red-600 border-red-400 text-white"
                     )}
                   >
                     {index + 1}
@@ -130,39 +148,49 @@ export default function GameBoard({ gameState }: GameBoardProps) {
               </div>
               <div className="text-center">
                 <div className="text-xs text-purple-200">
-                  Sequence Length: {pattern.length} | Score: {currentScore} points
+                  Rolling challenge starting soon...
                 </div>
               </div>
             </div>
           )}
 
-          {/* Challenge Mode Guessing Phase */}
+          {/* Challenge Mode - Rolling Sequence */}
           {gameMode === 'challenge' && gamePhase === 'playing' && challengePhase === 'guessing' && (
             <div className="bg-gradient-to-r from-red-700 to-orange-700 rounded-lg p-4 mb-4 border-2 border-red-500">
-              <h3 className="text-sm font-medium text-white mb-3">GUESSING PHASE - Pattern Hidden!</h3>
+              <h3 className="text-sm font-medium text-white mb-3">🎯 ROLLING SEQUENCE - Guess the missing color!</h3>
+              
+              {/* Show visible colors with hidden slot */}
               <div className="flex flex-wrap justify-center gap-2 mb-3">
-                {pattern.map((_, index) => (
+                {/* Show hidden color slot */}
+                <div className="w-12 h-12 rounded-full border-2 border-dashed border-yellow-400 bg-gray-800 flex items-center justify-center text-sm font-bold animate-pulse">
+                  <span className="text-yellow-400">?</span>
+                </div>
+                
+                {/* Show visible colors */}
+                {challengeVisibleColors.map((color: Color, index: number) => (
                   <div
-                    key={index}
+                    key={index + challengeCurrentIndex + 1}
                     className={cn(
                       "w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
-                      index === challengeCurrentIndex 
-                        ? "bg-yellow-500 border-yellow-400 text-black ring-4 ring-yellow-300 animate-pulse" 
-                        : index < challengeCurrentIndex
-                        ? "bg-green-600 border-green-400 text-white"
-                        : "bg-gray-600 border-gray-500 text-gray-400"
+                      color === 'green' 
+                        ? "bg-green-600 border-green-400 text-white" 
+                        : "bg-red-600 border-red-400 text-white"
                     )}
                   >
-                    {index + 1}
+                    {index + challengeCurrentIndex + 2}
                   </div>
                 ))}
               </div>
+              
               <div className="text-center">
                 <div className="text-lg font-bold text-yellow-300 mb-1">
                   ⏰ {challengeGuessTimer} seconds left!
                 </div>
                 <div className="text-xs text-orange-200">
-                  Click position {challengeCurrentIndex + 1} | Score: {currentScore} points
+                  Guess position {challengeCurrentIndex + 1} | Survived: {currentScore} seconds
+                </div>
+                <div className="text-xs text-orange-300 mt-1">
+                  Remember: What color was in the hidden position?
                 </div>
               </div>
             </div>
@@ -230,19 +258,37 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           </Button>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mb-6">
-          <div className="flex justify-between text-sm text-slate-400 mb-2">
-            <span>Pattern Progress</span>
-            <span>{userInput.length}/{pattern.length}</span>
+        {/* Progress Bar - Only for levels mode */}
+        {gameMode === 'levels' && (
+          <div className="mb-6">
+            <div className="flex justify-between text-sm text-slate-400 mb-2">
+              <span>Pattern Progress</span>
+              <span>{userInput.length}/{pattern.length}</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progressWidth}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full bg-slate-700 rounded-full h-2">
-            <div 
-              className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progressWidth}%` }}
-            />
+        )}
+
+        {/* Challenge Mode Score Display */}
+        {gameMode === 'challenge' && (
+          <div className="mb-6">
+            <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-lg p-4 border border-purple-500">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-300 mb-1">
+                  {currentScore} seconds
+                </div>
+                <div className="text-sm text-purple-400">
+                  Survival Time
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex space-x-4">
