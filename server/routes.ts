@@ -1,12 +1,30 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { insertLeaderboardEntrySchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Rate limiting for leaderboard endpoints
+  const leaderboardLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs for GET
+    message: { message: "Too many requests, please try again later." },
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  });
+
+  const leaderboardSubmitLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 5, // Limit each IP to 5 submissions per minute
+    message: { message: "Too many score submissions, please wait before submitting again." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   // Get leaderboard
-  app.get("/api/leaderboard", async (req, res) => {
+  app.get("/api/leaderboard", leaderboardLimiter, async (req, res) => {
     try {
       const leaderboard = await storage.getLeaderboard();
       res.json(leaderboard);
@@ -16,7 +34,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add leaderboard entry
-  app.post("/api/leaderboard", async (req, res) => {
+  app.post("/api/leaderboard", leaderboardSubmitLimiter, async (req, res) => {
     try {
       const validatedData = insertLeaderboardEntrySchema.parse(req.body);
       const entry = await storage.addLeaderboardEntry(validatedData);

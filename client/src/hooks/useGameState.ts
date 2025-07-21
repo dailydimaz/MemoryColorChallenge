@@ -34,6 +34,7 @@ export function useGameState() {
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
   const [isLevelCompleteModalOpen, setIsLevelCompleteModalOpen] = useState(false);
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
+  const [isLeaderboardModalOpen, setIsLeaderboardModalOpen] = useState(false);
   
   // Stats for modals
   const [finalScore, setFinalScore] = useState(0);
@@ -397,16 +398,23 @@ export function useGameState() {
   });
   
   // Submit score to leaderboard
-  const submitScore = useCallback(() => {
-    const playerName = prompt("Enter your name for the leaderboard:");
-    if (playerName && currentScore > 0) {
-      submitScoreMutation.mutate({
-        playerName: playerName.trim(),
+  const submitScore = useCallback((playerName: string) => {
+    // Sanitize player name - remove HTML tags, limit length, trim whitespace
+    const sanitizedName = playerName
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/[<>&"']/g, '') // Remove potentially dangerous characters
+      .trim()
+      .slice(0, 20); // Limit to 20 characters
+    
+    if (sanitizedName && currentScore > 0) {
+      return submitScoreMutation.mutateAsync({
+        playerName: sanitizedName,
         score: currentScore,
         level: gameMode === 'levels' ? currentLevel : Math.floor(currentScore / 100),
         timeCompleted: Date.now(),
       });
     }
+    return Promise.reject(new Error('Invalid player name or score'));
   }, [currentScore, currentLevel, gameMode, submitScoreMutation]);
   
   // Show instructions
@@ -450,6 +458,8 @@ export function useGameState() {
     setIsLevelCompleteModalOpen,
     isInstructionsModalOpen,
     setIsInstructionsModalOpen,
+    isLeaderboardModalOpen,
+    setIsLeaderboardModalOpen,
     
     // Modal data
     finalScore,

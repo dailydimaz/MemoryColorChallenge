@@ -26,6 +26,14 @@ export const insertLeaderboardEntrySchema = createInsertSchema(leaderboardEntrie
   score: true,
   level: true,
   timeCompleted: true,
+}).extend({
+  playerName: z.string()
+    .min(1, "Player name is required")
+    .max(20, "Player name must be 20 characters or less")
+    .regex(/^[a-zA-Z0-9\s\-_\.]+$/, "Player name contains invalid characters")
+    .transform((str: string) => str.trim()),
+  score: z.number().int().min(0).max(1000000),
+  level: z.number().int().min(1).max(50),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
