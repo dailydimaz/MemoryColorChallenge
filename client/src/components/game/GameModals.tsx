@@ -30,13 +30,19 @@ export default function GameModals({ gameState }: GameModalsProps) {
     <>
       {/* Game Over Modal */}
       <Dialog open={isGameOverModalOpen} onOpenChange={setIsGameOverModalOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-slate-50 max-w-md">
+        <DialogContent className="bg-slate-800 border-slate-700 text-slate-50 w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto" aria-describedby="game-over-description">
           <DialogHeader>
             <div className="text-center">
               <div className="text-6xl mb-4">{gameMode === 'challenge' ? '⏰' : '😞'}</div>
               <DialogTitle className="text-2xl font-bold mb-4">
                 {gameMode === 'challenge' ? 'Challenge Ended!' : 'Game Over!'}
               </DialogTitle>
+              <DialogDescription id="game-over-description" className="sr-only">
+                {gameMode === 'challenge' 
+                  ? `Your challenge run has ended. You survived for ${finalScore} seconds.`
+                  : `Game over. Your final score was ${finalScore} points with ${levelsCompleted} levels completed.`
+                }
+              </DialogDescription>
             </div>
           </DialogHeader>
           
@@ -87,11 +93,14 @@ export default function GameModals({ gameState }: GameModalsProps) {
 
       {/* Level Complete Modal */}
       <Dialog open={isLevelCompleteModalOpen} onOpenChange={setIsLevelCompleteModalOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-slate-50 max-w-md">
+        <DialogContent className="bg-slate-800 border-slate-700 text-slate-50 w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto" aria-describedby="level-complete-description">
           <DialogHeader>
             <div className="text-center">
               <div className="text-6xl mb-4">🎉</div>
               <DialogTitle className="text-2xl font-bold mb-4">Level Complete!</DialogTitle>
+              <DialogDescription id="level-complete-description" className="sr-only">
+                Congratulations! You have successfully completed the level and unlocked a new secret code. Your performance summary and next level options are displayed below.
+              </DialogDescription>
             </div>
           </DialogHeader>
           
@@ -146,9 +155,12 @@ export default function GameModals({ gameState }: GameModalsProps) {
 
       {/* Instructions Modal */}
       <Dialog open={isInstructionsModalOpen} onOpenChange={setIsInstructionsModalOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-slate-50 max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-slate-800 border-slate-700 text-slate-50 w-[95vw] max-w-lg mx-auto max-h-[85vh] overflow-y-auto" aria-describedby="instructions-description">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">How to Play</DialogTitle>
+            <DialogDescription id="instructions-description" className="sr-only">
+              Complete instructions for playing the Memory Color Challenge game, including basic gameplay, level mode, challenge mode, and scoring information.
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6">
@@ -157,11 +169,11 @@ export default function GameModals({ gameState }: GameModalsProps) {
                 <Gamepad2 className="mr-2" size={20} />
                 Basic Gameplay
               </h3>
-              <ul className="text-slate-300 space-y-2 text-sm">
+              <ul className="text-slate-300 space-y-3 text-base sm:text-sm">
                 <li>• Watch the color pattern sequence carefully</li>
                 <li>• Remember the order of green and red button flashes</li>
                 <li>• When it's your turn, click the buttons in the same order</li>
-                <li>• Use keyboard shortcuts: <span className="font-mono bg-slate-600 px-1 rounded">Q</span> for Green, <span className="font-mono bg-slate-600 px-1 rounded">P</span> for Red</li>
+                <li>• Use keyboard shortcuts: <span className="font-mono bg-slate-600 px-2 py-1 rounded text-sm">Q</span> for Green, <span className="font-mono bg-slate-600 px-2 py-1 rounded text-sm">P</span> for Red</li>
                 <li>• Complete the pattern correctly to advance</li>
               </ul>
             </div>

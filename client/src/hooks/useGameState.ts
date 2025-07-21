@@ -53,6 +53,7 @@ export function useGameState() {
   // Refs for timers
   const timerRef = useRef<NodeJS.Timeout>();
   const patternTimeoutRef = useRef<NodeJS.Timeout>();
+  const displayTimerRef = useRef<NodeJS.Timeout>();
   
   // Load game state from localStorage
   useEffect(() => {
@@ -117,7 +118,7 @@ export function useGameState() {
     };
   }, [gameMode, gamePhase, timeRemaining]);
   
-  // Generate random pattern with improved distribution (avoid long repeated sequences)
+  // Generate random pattern with improved distribution (allow up to 3 consecutive same colors)
   const generatePattern = useCallback((length: number): Color[] => {
     const colors: Color[] = ['green', 'red'];
     const pattern: Color[] = [];
@@ -127,21 +128,17 @@ export function useGameState() {
         // First color is random
         pattern.push(colors[Math.floor(Math.random() * colors.length)]);
       } else {
-        // Avoid more than 2 consecutive same colors
+        // Avoid more than 3 consecutive same colors
         const lastColor = pattern[i - 1];
         const secondLastColor = i >= 2 ? pattern[i - 2] : null;
+        const thirdLastColor = i >= 3 ? pattern[i - 3] : null;
         
-        if (secondLastColor && lastColor === secondLastColor) {
-          // Force different color if last 2 were the same
+        if (thirdLastColor && secondLastColor && lastColor === secondLastColor && secondLastColor === thirdLastColor) {
+          // Force different color if last 3 were the same
           pattern.push(lastColor === 'green' ? 'red' : 'green');
         } else {
-          // Random color (but slightly bias toward different color for variety)
-          const shouldBeDifferent = Math.random() < 0.7; // 70% chance of different color
-          if (shouldBeDifferent) {
-            pattern.push(lastColor === 'green' ? 'red' : 'green');
-          } else {
-            pattern.push(lastColor);
-          }
+          // Random color with natural distribution
+          pattern.push(colors[Math.floor(Math.random() * colors.length)]);
         }
       }
     }
@@ -202,12 +199,14 @@ export function useGameState() {
     // Clear any running timers
     if (timerRef.current) clearTimeout(timerRef.current);
     if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
+    if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
   }, [gameMode, currentScore, unlockedLevels, challengeStartTime]);
   
   // Start the 3-second timer for challenge mode guessing
   const startChallengeGuessTimer = useCallback(() => {
-    // Clear any existing timer
+    // Clear any existing timers
     if (timerRef.current) clearTimeout(timerRef.current);
+    if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
     
     setChallengeGuessTimer(3);
     
@@ -218,13 +217,15 @@ export function useGameState() {
     }, 3000); // Exactly 3 seconds, no more
     
     // Update display timer every second for UI feedback
-    const updateDisplay = (timeLeft: number) => {
-      setChallengeGuessTimer(timeLeft);
-      if (timeLeft > 0) {
-        setTimeout(() => updateDisplay(timeLeft - 1), 1000);
+    let currentTime = 3;
+    const updateDisplay = () => {
+      setChallengeGuessTimer(currentTime);
+      currentTime--;
+      if (currentTime >= 0) {
+        displayTimerRef.current = setTimeout(updateDisplay, 1000);
       }
     };
-    updateDisplay(3);
+    updateDisplay();
   }, [handleGameOver]);
   
   // Start rolling sequence for challenge mode
@@ -257,23 +258,19 @@ export function useGameState() {
     const currentSequence = [...challengeSequence];
     const nextIndex = challengeCurrentIndex + 1;
     
-    // Add 1-2 new colors to keep the sequence growing, avoiding long repeats
+    // Add 1-2 new colors to keep the sequence growing, allowing up to 3 consecutive same colors
     const addSmartColor = (sequence: Color[]): Color => {
       const colors: Color[] = ['green', 'red'];
       const lastColor = sequence[sequence.length - 1];
       const secondLastColor = sequence.length >= 2 ? sequence[sequence.length - 2] : null;
+      const thirdLastColor = sequence.length >= 3 ? sequence[sequence.length - 3] : null;
       
-      if (secondLastColor && lastColor === secondLastColor) {
-        // Force different color if last 2 were the same
+      if (thirdLastColor && secondLastColor && lastColor === secondLastColor && secondLastColor === thirdLastColor) {
+        // Force different color if last 3 were the same
         return lastColor === 'green' ? 'red' : 'green';
       } else {
-        // 70% chance of different color for variety
-        const shouldBeDifferent = Math.random() < 0.7;
-        if (shouldBeDifferent) {
-          return lastColor === 'green' ? 'red' : 'green';
-        } else {
-          return lastColor;
-        }
+        // Random color with natural distribution
+        return colors[Math.floor(Math.random() * colors.length)];
       }
     };
     
@@ -313,6 +310,7 @@ export function useGameState() {
     // Clear any existing timers
     if (timerRef.current) clearTimeout(timerRef.current);
     if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
+    if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
     
     if (gameMode === 'challenge') {
       // New rolling sequence challenge mode
@@ -402,8 +400,9 @@ export function useGameState() {
       
       if (color === expectedColor) {
         // Correct guess!
-        // Clear the timer for this guess
+        // Clear the timers for this guess
         if (timerRef.current) clearTimeout(timerRef.current);
+        if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
         
         // Update score with survival time
         const survivalTime = Math.floor((Date.now() - challengeStartTime) / 1000);
@@ -463,6 +462,7 @@ export function useGameState() {
     // Clear any running timers
     if (timerRef.current) clearTimeout(timerRef.current);
     if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
+    if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
   }, [gameMode]);
   
   // Next level

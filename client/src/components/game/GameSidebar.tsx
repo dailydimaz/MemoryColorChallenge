@@ -33,7 +33,7 @@ export default function GameSidebar({ gameState }: GameSidebarProps) {
   const levels = Array.from({ length: maxLevel }, (_, i) => i + 1);
 
   return (
-    <div className="w-full lg:w-80 bg-slate-800 border-t lg:border-t-0 lg:border-l border-slate-700 p-4 lg:p-6 overflow-y-auto">
+    <div className="w-full lg:w-80 bg-slate-800 border-t lg:border-t-0 lg:border-l border-slate-700 p-3 sm:p-4 lg:p-6 overflow-y-auto mobile-scroll">
       {/* Player Name Input */}
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-3 flex items-center text-slate-50">
@@ -65,7 +65,7 @@ export default function GameSidebar({ gameState }: GameSidebarProps) {
               Levels
             </h3>
             
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-2 mb-4">
               {levels.map((level) => {
                 const isUnlocked = level <= unlockedLevels;
                 const isCurrent = level === currentLevel;
@@ -77,7 +77,7 @@ export default function GameSidebar({ gameState }: GameSidebarProps) {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "min-w-12 h-12 sm:w-12 rounded-lg font-bold text-sm transition-all touch-manipulation active:scale-95",
+                      "min-w-14 h-14 sm:min-w-12 sm:h-12 rounded-lg font-bold text-sm transition-all touch-manipulation active:scale-95",
                       isCompleted && "bg-green-600 hover:bg-green-700 text-white border-green-500 active:ring-2 active:ring-green-300",
                       isCurrent && !isCompleted && "bg-blue-600 hover:bg-blue-700 text-white border-blue-500 active:ring-2 active:ring-blue-300",
                       !isUnlocked && "bg-slate-600 text-slate-400 cursor-not-allowed border-slate-500 opacity-50",
@@ -253,7 +253,7 @@ export default function GameSidebar({ gameState }: GameSidebarProps) {
               .slice(0, 5)
               .map((entry, index) => (
                 <Card 
-                  key={index} 
+                  key={`challenge-${entry.name}-${entry.time}-${index}`} 
                   className={cn(
                     "border-slate-600 transition-all",
                     index === 0 && "bg-gradient-to-r from-amber-500 to-orange-500 border-amber-400",

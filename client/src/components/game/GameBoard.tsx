@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Play, HelpCircle, Infinity, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 type Color = 'green' | 'red';
 
@@ -66,25 +66,35 @@ export default function GameBoard({ gameState }: GameBoardProps) {
 
   // Visual feedback for keyboard presses
   const [keyboardPressed, setKeyboardPressed] = useState<Color | null>(null);
+  
+  // Use ref to store current handleColorClick to avoid useEffect dependency issues
+  const handleColorClickRef = useRef(handleColorClick);
+  const gamePhaseRef = useRef(gamePhase);
+  
+  // Update refs when values change
+  useEffect(() => {
+    handleColorClickRef.current = handleColorClick;
+    gamePhaseRef.current = gamePhase;
+  });
 
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only handle keyboard input during playing phase
-      if (gamePhase !== 'playing') return;
+      if (gamePhaseRef.current !== 'playing') return;
       
       const key = event.key.toLowerCase();
       
       if (key === 'q') {
         event.preventDefault();
         setKeyboardPressed('green');
-        handleColorClick('green');
+        handleColorClickRef.current('green');
         // Clear highlight after a short delay
         setTimeout(() => setKeyboardPressed(null), 150);
       } else if (key === 'p') {
         event.preventDefault();
         setKeyboardPressed('red');
-        handleColorClick('red');
+        handleColorClickRef.current('red');
         // Clear highlight after a short delay
         setTimeout(() => setKeyboardPressed(null), 150);
       }
@@ -97,7 +107,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [gamePhase, handleColorClick]);
+  }, []); // Empty dependency array - event listener is set once
 
   return (
     <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
@@ -110,41 +120,45 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           `${challengeGuessTimer} seconds remaining to guess`}
       </div>
       
-      <div className="bg-slate-800 rounded-2xl p-4 lg:p-8 shadow-2xl border border-slate-700 max-w-2xl w-full">
+      <div className="bg-slate-800 rounded-2xl p-4 lg:p-8 shadow-2xl border border-slate-700 max-w-2xl w-full game-element">
         {/* Game Mode Selector */}
-        <div className="flex bg-slate-700 rounded-lg p-1 mb-8">
+        <div className="flex bg-slate-700 rounded-lg p-1 mb-6 sm:mb-8">
           <Button
             variant={gameMode === 'levels' ? 'default' : 'ghost'}
             className={cn(
-              "flex-1 py-3 px-4 rounded-md font-medium transition-all",
+              "flex-1 py-4 sm:py-3 px-4 rounded-md font-medium transition-all touch-manipulation min-h-[50px]",
               gameMode === 'levels' 
                 ? "bg-blue-600 hover:bg-blue-700 text-white" 
                 : "text-slate-400 hover:text-white hover:bg-slate-600"
             )}
             onClick={() => setGameMode('levels')}
           >
-            <Layers className="mr-2" size={16} />
-            Levels
+            <div className="flex items-center">
+              <Layers className="mr-2" size={16} />
+              <span>Levels</span>
+            </div>
           </Button>
           <Button
             variant={gameMode === 'challenge' ? 'default' : 'ghost'}
             className={cn(
-              "flex-1 py-3 px-4 rounded-md font-medium transition-all",
+              "flex-1 py-4 sm:py-3 px-4 rounded-md font-medium transition-all touch-manipulation min-h-[50px]",
               gameMode === 'challenge' 
                 ? "bg-blue-600 hover:bg-blue-700 text-white" 
                 : "text-slate-400 hover:text-white hover:bg-slate-600"
             )}
             onClick={() => setGameMode('challenge')}
           >
-            <Infinity className="mr-2" size={16} />
-            Challenge
+            <div className="flex items-center">
+              <Infinity className="mr-2" size={16} />
+              <span>Challenge</span>
+            </div>
           </Button>
         </div>
 
         {/* Pattern Display Area */}
-        <div className="text-center mb-8">
-          <h2 className="text-xl font-semibold mb-4">Remember the pattern!</h2>
-          <p className="text-slate-400 mb-4">{getPhaseText()}</p>
+        <div className="text-center mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-xl font-semibold mb-4">Remember the pattern!</h2>
+          <p className="text-slate-300 text-base sm:text-slate-400 sm:text-sm mb-4">{getPhaseText()}</p>
           
           {/* Error Display */}
           {error && (
@@ -172,7 +186,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                   <div
                     key={index}
                     className={cn(
-                      "w-10 h-10 border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
+                      "w-12 h-12 sm:w-10 sm:h-10 border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
                       color === 'green' 
                         ? "bg-green-600 border-green-500 text-white rounded-full" 
                         : "bg-red-600 border-red-500 text-white rounded-lg",
@@ -235,7 +249,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                 {/* Show visible colors */}
                 {challengeVisibleColors.map((color: Color, index: number) => (
                   <div
-                    key={index + challengeCurrentIndex + 1}
+                    key={`visible-${challengeCurrentIndex}-${index}`}
                     className={cn(
                       "w-12 h-12 border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
                       color === 'green' 
@@ -287,12 +301,12 @@ export default function GameBoard({ gameState }: GameBoardProps) {
         </div>
 
         {/* Color Buttons Grid */}
-        <div className="grid grid-cols-2 gap-4 lg:gap-6 mb-8">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           {/* Green Button */}
           <Button
             data-color="green"
             className={cn(
-              "w-full h-36 lg:h-32 rounded-xl shadow-lg border-4 text-xl lg:text-2xl font-bold transition-all duration-200",
+              "w-full h-40 sm:h-36 lg:h-32 rounded-xl shadow-lg border-4 text-xl lg:text-2xl font-bold transition-all duration-200 min-h-[160px] sm:min-h-[144px]",
               "bg-green-600 hover:bg-green-500 active:bg-green-700 border-green-500 text-white",
               "transform hover:scale-105 active:scale-95 touch-manipulation active:ring-4 active:ring-green-300",
               gamePhase !== 'playing' && "opacity-40 cursor-not-allowed grayscale",
@@ -302,13 +316,13 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             disabled={gamePhase !== 'playing'}
             aria-label="Green button - Circle pattern - Press Q"
           >
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center space-y-2 sm:space-y-1">
               {/* Circle pattern for color-blind accessibility */}
-              <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-full bg-white border-4 border-green-200 opacity-90 mb-2 flex items-center justify-center">
-                <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full bg-green-600" />
+              <div className="w-14 h-14 sm:w-12 sm:h-12 lg:w-16 lg:h-16 rounded-full bg-white border-4 border-green-200 opacity-90 flex items-center justify-center">
+                <div className="w-7 h-7 sm:w-6 sm:h-6 lg:w-8 lg:h-8 rounded-full bg-green-600" />
               </div>
               <span className="text-lg lg:text-xl font-bold">GREEN</span>
-              <div className="text-xs text-green-200 mt-1 opacity-75">Press Q</div>
+              <div className="text-xs text-green-200 opacity-75">Press Q</div>
             </div>
           </Button>
           
@@ -316,7 +330,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           <Button
             data-color="red"
             className={cn(
-              "w-full h-36 lg:h-32 rounded-xl shadow-lg border-4 text-xl lg:text-2xl font-bold transition-all duration-200",
+              "w-full h-40 sm:h-36 lg:h-32 rounded-xl shadow-lg border-4 text-xl lg:text-2xl font-bold transition-all duration-200 min-h-[160px] sm:min-h-[144px]",
               "bg-red-600 hover:bg-red-500 active:bg-red-700 border-red-500 text-white",
               "transform hover:scale-105 active:scale-95 touch-manipulation active:ring-4 active:ring-red-300",
               gamePhase !== 'playing' && "opacity-40 cursor-not-allowed grayscale",
@@ -326,13 +340,13 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             disabled={gamePhase !== 'playing'}
             aria-label="Red button - Square pattern - Press P"
           >
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center space-y-2 sm:space-y-1">
               {/* Square pattern for color-blind accessibility */}
-              <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg bg-white border-4 border-red-200 opacity-90 mb-2 flex items-center justify-center">
-                <div className="w-6 h-6 lg:w-8 lg:h-8 bg-red-600 rounded-sm" />
+              <div className="w-14 h-14 sm:w-12 sm:h-12 lg:w-16 lg:h-16 rounded-lg bg-white border-4 border-red-200 opacity-90 flex items-center justify-center">
+                <div className="w-7 h-7 sm:w-6 sm:h-6 lg:w-8 lg:h-8 bg-red-600 rounded-sm" />
               </div>
               <span className="text-lg lg:text-xl font-bold">RED</span>
-              <div className="text-xs text-red-200 mt-1 opacity-75">Press P</div>
+              <div className="text-xs text-red-200 opacity-75">Press P</div>
             </div>
           </Button>
         </div>
