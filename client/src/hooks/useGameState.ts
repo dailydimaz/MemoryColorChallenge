@@ -100,10 +100,36 @@ export function useGameState() {
     };
   }, [gameMode, gamePhase, timeRemaining]);
   
-  // Generate random pattern
+  // Generate random pattern with improved distribution (avoid long repeated sequences)
   const generatePattern = useCallback((length: number): Color[] => {
     const colors: Color[] = ['green', 'red'];
-    return Array.from({ length }, () => colors[Math.floor(Math.random() * colors.length)]);
+    const pattern: Color[] = [];
+    
+    for (let i = 0; i < length; i++) {
+      if (i === 0) {
+        // First color is random
+        pattern.push(colors[Math.floor(Math.random() * colors.length)]);
+      } else {
+        // Avoid more than 2 consecutive same colors
+        const lastColor = pattern[i - 1];
+        const secondLastColor = i >= 2 ? pattern[i - 2] : null;
+        
+        if (secondLastColor && lastColor === secondLastColor) {
+          // Force different color if last 2 were the same
+          pattern.push(lastColor === 'green' ? 'red' : 'green');
+        } else {
+          // Random color (but slightly bias toward different color for variety)
+          const shouldBeDifferent = Math.random() < 0.7; // 70% chance of different color
+          if (shouldBeDifferent) {
+            pattern.push(lastColor === 'green' ? 'red' : 'green');
+          } else {
+            pattern.push(lastColor);
+          }
+        }
+      }
+    }
+    
+    return pattern;
   }, []);
   
   // Fixed secret codes for each level - same for all players
@@ -168,20 +194,20 @@ export function useGameState() {
     
     setChallengeGuessTimer(3);
     
-    const countdown = () => {
-      setChallengeGuessTimer(prev => {
-        if (prev <= 1) {
-          // Time's up - game over
-          handleGameOver();
-          return 0;
-        }
-        timerRef.current = setTimeout(countdown, 1000);
-        return prev - 1;
-      });
-    };
+    // Use a precise 3-second timeout to prevent AFK exploitation
+    timerRef.current = setTimeout(() => {
+      // Time's up - game over (no matter what the display shows)
+      handleGameOver();
+    }, 3000); // Exactly 3 seconds, no more
     
-    // Start countdown immediately, then continue every second
-    countdown();
+    // Update display timer every second for UI feedback
+    const updateDisplay = (timeLeft: number) => {
+      setChallengeGuessTimer(timeLeft);
+      if (timeLeft > 0) {
+        setTimeout(() => updateDisplay(timeLeft - 1), 1000);
+      }
+    };
+    updateDisplay(3);
   }, [handleGameOver]);
   
   // Start rolling sequence for challenge mode
@@ -208,10 +234,30 @@ export function useGameState() {
     const currentSequence = [...challengeSequence];
     const nextIndex = challengeCurrentIndex + 1;
     
-    // Add 1-2 new colors to keep the sequence growing
-    const newColor1 = generatePattern(1)[0];
-    const newColor2 = generatePattern(1)[0];
-    currentSequence.push(newColor1, newColor2);
+    // Add 1-2 new colors to keep the sequence growing, avoiding long repeats
+    const addSmartColor = (sequence: Color[]): Color => {
+      const colors: Color[] = ['green', 'red'];
+      const lastColor = sequence[sequence.length - 1];
+      const secondLastColor = sequence.length >= 2 ? sequence[sequence.length - 2] : null;
+      
+      if (secondLastColor && lastColor === secondLastColor) {
+        // Force different color if last 2 were the same
+        return lastColor === 'green' ? 'red' : 'green';
+      } else {
+        // 70% chance of different color for variety
+        const shouldBeDifferent = Math.random() < 0.7;
+        if (shouldBeDifferent) {
+          return lastColor === 'green' ? 'red' : 'green';
+        } else {
+          return lastColor;
+        }
+      }
+    };
+    
+    const newColor1 = addSmartColor(currentSequence);
+    currentSequence.push(newColor1);
+    const newColor2 = addSmartColor(currentSequence);
+    currentSequence.push(newColor2);
     setChallengeSequence(currentSequence);
     
     // Update visible colors (hide the current guess position, show the rest)

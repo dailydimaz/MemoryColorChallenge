@@ -114,9 +114,6 @@ export default function GameSidebar({ gameState }: GameSidebarProps) {
                     <Unlock size={16} />
                   </Button>
                 </div>
-                <div className="text-xs text-slate-400">
-                  Examples: MEMO (Level 1), PTRN (Level 2), CLRS (Level 3)
-                </div>
               </CardContent>
             </Card>
           </div>
