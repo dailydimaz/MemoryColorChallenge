@@ -221,7 +221,13 @@ export function useGameState() {
     setChallengeStartTime(Date.now());
     
     // Hide the first color and start guessing timer
-    const visibleColors = sequence.slice(1);
+    let visibleColors = sequence.slice(1);
+    
+    // Limit to 25 visible colors maximum for mobile compatibility
+    if (visibleColors.length > 25) {
+      visibleColors = visibleColors.slice(-25); // Show only the last 25 colors
+    }
+    
     setChallengeVisibleColors(visibleColors);
     
     // Start 3-second timer for first guess
@@ -261,9 +267,15 @@ export function useGameState() {
     setChallengeSequence(currentSequence);
     
     // Update visible colors (hide the current guess position, show the rest)
-    // Always ensure at least 2-3 colors are visible for context
+    // Limit to max 25 visible colors for mobile UI (+ 1 hidden = 26 total displayed)
     const minVisibleStart = Math.max(0, nextIndex + 1);
-    const visibleColors = currentSequence.slice(minVisibleStart);
+    let visibleColors = currentSequence.slice(minVisibleStart);
+    
+    // Limit to 25 visible colors maximum for mobile compatibility
+    if (visibleColors.length > 25) {
+      visibleColors = visibleColors.slice(-25); // Show only the last 25 colors
+    }
+    
     setChallengeVisibleColors(visibleColors);
     
     // Move to next position
