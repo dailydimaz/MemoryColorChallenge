@@ -21,6 +21,10 @@ export function useGameState() {
   const [secretCode, setSecretCode] = useState('');
   const [levelCodes, setLevelCodes] = useState<Record<number, string>>({});
   
+  // UI state
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
   // Challenge mode state
   const [challengePhase, setChallengePhase] = useState<'showing' | 'guessing'>('showing');
   const [challengeGuessTimer, setChallengeGuessTimer] = useState(3);
@@ -52,31 +56,44 @@ export function useGameState() {
   
   // Load game state from localStorage
   useEffect(() => {
-    const savedState = localStorage.getItem('memoryGameState');
-    if (savedState) {
-      try {
+    try {
+      const savedState = localStorage.getItem('memoryGameState');
+      if (savedState) {
         const state = JSON.parse(savedState);
         setCurrentLevel(state.currentLevel || 1);
         setCurrentScore(state.currentScore || 0);
         setUnlockedLevels(state.unlockedLevels || 1);
         setLevelCodes(state.levelCodes || {});
         setPlayerName(state.playerName || '');
-      } catch (error) {
-        console.error('Failed to load game state:', error);
+      }
+    } catch (error) {
+      console.error('Failed to load game state:', error);
+      setError('Failed to load saved game data. Starting fresh.');
+      // Clear corrupted data
+      try {
+        localStorage.removeItem('memoryGameState');
+      } catch {
+        // Ignore storage errors
       }
     }
   }, []);
   
   // Save game state to localStorage
   const saveGameState = useCallback(() => {
-    const state = {
-      currentLevel,
-      currentScore,
-      unlockedLevels,
-      levelCodes,
-      playerName
-    };
-    localStorage.setItem('memoryGameState', JSON.stringify(state));
+    try {
+      const state = {
+        currentLevel,
+        currentScore,
+        unlockedLevels,
+        levelCodes,
+        playerName
+      };
+      localStorage.setItem('memoryGameState', JSON.stringify(state));
+      setError(null); // Clear any previous errors
+    } catch (error) {
+      console.error('Failed to save game state:', error);
+      setError('Unable to save game progress. Your progress may not be preserved.');
+    }
   }, [currentLevel, currentScore, unlockedLevels, levelCodes, playerName]);
   
   useEffect(() => {
@@ -290,6 +307,9 @@ export function useGameState() {
   const startNewPattern = useCallback(() => {
     if (gamePhase === 'showing' || gamePhase === 'playing') return;
     
+    setIsLoading(true);
+    setError(null);
+    
     // Clear any existing timers
     if (timerRef.current) clearTimeout(timerRef.current);
     if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
@@ -308,6 +328,7 @@ export function useGameState() {
       // Start the rolling sequence after a brief showing period
       // Timer will start when rolling begins, not here
       patternTimeoutRef.current = setTimeout(() => {
+        setIsLoading(false);
         startRollingSequence(initialSequence);
       }, 2000); // Show initial pattern for 2 seconds
       
@@ -322,6 +343,7 @@ export function useGameState() {
       setTimeRemaining(30 + currentLevel * 3); // More challenging time pressure
       
       // Show pattern sequence
+      setIsLoading(false);
       showPatternSequence(newPattern);
     }
   }, [gamePhase, gameMode, currentLevel, generatePattern, startRollingSequence, showPatternSequence]);
@@ -524,6 +546,10 @@ export function useGameState() {
     secretCode,
     setSecretCode,
     levelCodes,
+    
+    // UI state
+    isLoading,
+    error,
     
     // Challenge mode state
     challengePhase,

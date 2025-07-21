@@ -65,7 +65,7 @@ export default function GameSidebar({ gameState }: GameSidebarProps) {
               Levels
             </h3>
             
-            <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">
               {levels.map((level) => {
                 const isUnlocked = level <= unlockedLevels;
                 const isCurrent = level === currentLevel;
@@ -77,14 +77,15 @@ export default function GameSidebar({ gameState }: GameSidebarProps) {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "w-12 h-12 rounded-lg font-bold text-sm transition-all",
-                      isCompleted && "bg-green-600 hover:bg-green-700 text-white border-green-500",
-                      isCurrent && !isCompleted && "bg-blue-600 hover:bg-blue-700 text-white border-blue-500",
-                      !isUnlocked && "bg-slate-600 text-slate-400 cursor-not-allowed border-slate-500",
-                      isUnlocked && !isCurrent && !isCompleted && "bg-slate-700 hover:bg-slate-600 text-slate-300 border-slate-600"
+                      "min-w-12 h-12 sm:w-12 rounded-lg font-bold text-sm transition-all touch-manipulation active:scale-95",
+                      isCompleted && "bg-green-600 hover:bg-green-700 text-white border-green-500 active:ring-2 active:ring-green-300",
+                      isCurrent && !isCompleted && "bg-blue-600 hover:bg-blue-700 text-white border-blue-500 active:ring-2 active:ring-blue-300",
+                      !isUnlocked && "bg-slate-600 text-slate-400 cursor-not-allowed border-slate-500 opacity-50",
+                      isUnlocked && !isCurrent && !isCompleted && "bg-slate-700 hover:bg-slate-600 text-slate-300 border-slate-600 active:ring-2 active:ring-slate-400"
                     )}
                     onClick={() => selectLevel(level)}
                     disabled={!isUnlocked}
+                    aria-label={`Level ${level}${isCompleted ? ' - completed' : ''}${isCurrent ? ' - current' : ''}${!isUnlocked ? ' - locked' : ''}`}
                   >
                     {level}
                   </Button>

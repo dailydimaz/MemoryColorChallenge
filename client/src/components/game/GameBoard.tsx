@@ -24,7 +24,9 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     challengeGuessTimer,
     challengeCurrentIndex,
     challengeSequence,
-    challengeVisibleColors
+    challengeVisibleColors,
+    isLoading,
+    error
   } = gameState;
 
   const getPhaseText = () => {
@@ -63,6 +65,15 @@ export default function GameBoard({ gameState }: GameBoardProps) {
 
   return (
     <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
+      {/* Screen reader announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {getPhaseText()}
+      </div>
+      <div aria-live="assertive" aria-atomic="true" className="sr-only">
+        {gameMode === 'challenge' && gamePhase === 'playing' && 
+          `${challengeGuessTimer} seconds remaining to guess`}
+      </div>
+      
       <div className="bg-slate-800 rounded-2xl p-4 lg:p-8 shadow-2xl border border-slate-700 max-w-2xl w-full">
         {/* Game Mode Selector */}
         <div className="flex bg-slate-700 rounded-lg p-1 mb-8">
@@ -99,6 +110,23 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           <h2 className="text-xl font-semibold mb-4">Remember the pattern!</h2>
           <p className="text-slate-400 mb-4">{getPhaseText()}</p>
           
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-900/50 border border-red-500 rounded-lg p-3 mb-4">
+              <p className="text-red-200 text-sm">{error}</p>
+            </div>
+          )}
+          
+          {/* Loading State */}
+          {isLoading && (
+            <div className="bg-blue-900/50 border border-blue-500 rounded-lg p-3 mb-4">
+              <div className="flex items-center justify-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                <p className="text-blue-200 text-sm">Preparing pattern...</p>
+              </div>
+            </div>
+          )}
+          
           {/* Pattern Sequence Display */}
           {gameMode === 'levels' && gamePhase === 'showing' && pattern.length > 0 && (
             <div className="bg-slate-700 rounded-lg p-4 mb-4">
@@ -108,12 +136,13 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                   <div
                     key={index}
                     className={cn(
-                      "w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
+                      "w-10 h-10 border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
                       color === 'green' 
-                        ? "bg-green-600 border-green-500 text-white" 
-                        : "bg-red-600 border-red-500 text-white",
+                        ? "bg-green-600 border-green-500 text-white rounded-full" 
+                        : "bg-red-600 border-red-500 text-white rounded-lg",
                       index < patternProgress && "ring-4 ring-yellow-400 ring-opacity-70 scale-110"
                     )}
+                    aria-label={`${color} ${color === 'green' ? 'circle' : 'square'} - position ${index + 1}`}
                   >
                     {index + 1}
                   </div>
@@ -136,11 +165,12 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                   <div
                     key={index}
                     className={cn(
-                      "w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-500",
+                      "w-12 h-12 border-2 flex items-center justify-center text-sm font-bold transition-all duration-500",
                       color === 'green' 
-                        ? "bg-green-600 border-green-400 text-white" 
-                        : "bg-red-600 border-red-400 text-white"
+                        ? "bg-green-600 border-green-400 text-white rounded-full" 
+                        : "bg-red-600 border-red-400 text-white rounded-lg"
                     )}
+                    aria-label={`${color} ${color === 'green' ? 'circle' : 'square'} - position ${index + 1}`}
                   >
                     {index + 1}
                   </div>
@@ -171,11 +201,12 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                   <div
                     key={index + challengeCurrentIndex + 1}
                     className={cn(
-                      "w-12 h-12 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
+                      "w-12 h-12 border-2 flex items-center justify-center text-sm font-bold transition-all duration-300",
                       color === 'green' 
-                        ? "bg-green-600 border-green-400 text-white" 
-                        : "bg-red-600 border-red-400 text-white"
+                        ? "bg-green-600 border-green-400 text-white rounded-full" 
+                        : "bg-red-600 border-red-400 text-white rounded-lg"
                     )}
+                    aria-label={`${color} ${color === 'green' ? 'circle' : 'square'} - position ${index + challengeCurrentIndex + 2}`}
                   >
                     {index + challengeCurrentIndex + 2}
                   </div>
@@ -227,14 +258,18 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             className={cn(
               "w-full h-36 lg:h-32 rounded-xl shadow-lg border-4 text-xl lg:text-2xl font-bold transition-all duration-200",
               "bg-green-600 hover:bg-green-500 active:bg-green-700 border-green-500 text-white",
-              "transform hover:scale-105 active:scale-95 touch-manipulation",
-              gamePhase !== 'playing' && "opacity-60 cursor-not-allowed"
+              "transform hover:scale-105 active:scale-95 touch-manipulation active:ring-4 active:ring-green-300",
+              gamePhase !== 'playing' && "opacity-40 cursor-not-allowed grayscale"
             )}
             onClick={() => handleColorClick('green')}
             disabled={gamePhase !== 'playing'}
+            aria-label="Green button - Circle pattern"
           >
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-full bg-white opacity-90 mb-2" />
+              {/* Circle pattern for color-blind accessibility */}
+              <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-full bg-white border-4 border-green-200 opacity-90 mb-2 flex items-center justify-center">
+                <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full bg-green-600" />
+              </div>
               <span className="text-lg lg:text-xl font-bold">GREEN</span>
             </div>
           </Button>
@@ -245,14 +280,18 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             className={cn(
               "w-full h-36 lg:h-32 rounded-xl shadow-lg border-4 text-xl lg:text-2xl font-bold transition-all duration-200",
               "bg-red-600 hover:bg-red-500 active:bg-red-700 border-red-500 text-white",
-              "transform hover:scale-105 active:scale-95 touch-manipulation",
-              gamePhase !== 'playing' && "opacity-60 cursor-not-allowed"
+              "transform hover:scale-105 active:scale-95 touch-manipulation active:ring-4 active:ring-red-300",
+              gamePhase !== 'playing' && "opacity-40 cursor-not-allowed grayscale"
             )}
             onClick={() => handleColorClick('red')}
             disabled={gamePhase !== 'playing'}
+            aria-label="Red button - Square pattern"
           >
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-full bg-white opacity-90 mb-2" />
+              {/* Square pattern for color-blind accessibility */}
+              <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-lg bg-white border-4 border-red-200 opacity-90 mb-2 flex items-center justify-center">
+                <div className="w-6 h-6 lg:w-8 lg:h-8 bg-red-600 rounded-sm" />
+              </div>
               <span className="text-lg lg:text-xl font-bold">RED</span>
             </div>
           </Button>
