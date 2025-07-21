@@ -1,10 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RotateCcw, Home, ArrowRight, Play, Gamepad2, Layers, Infinity, Trophy, User } from "lucide-react";
-import { useState } from "react";
+import { RotateCcw, Home, ArrowRight, Play, Gamepad2, Layers, Infinity, Trophy } from "lucide-react";
 
 interface GameModalsProps {
   gameState: any;
@@ -18,8 +15,6 @@ export default function GameModals({ gameState }: GameModalsProps) {
     setIsLevelCompleteModalOpen,
     isInstructionsModalOpen,
     setIsInstructionsModalOpen,
-    isLeaderboardModalOpen,
-    setIsLeaderboardModalOpen,
     finalScore,
     levelsCompleted,
     levelSecretCode,
@@ -28,32 +23,8 @@ export default function GameModals({ gameState }: GameModalsProps) {
     totalScore,
     restartGame,
     nextLevel,
-    submitScore,
     gameMode
   } = gameState;
-
-  const [playerName, setPlayerName] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmitScore = async () => {
-    if (!playerName.trim()) return;
-    
-    setIsSubmitting(true);
-    try {
-      await submitScore(playerName.trim());
-      setPlayerName("");
-      setIsLeaderboardModalOpen(false);
-    } catch (error) {
-      // Error handling is done in the submitScore function
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleLeaderboardModalClose = () => {
-    setPlayerName("");
-    setIsLeaderboardModalOpen(false);
-  };
 
   return (
     <>
@@ -101,13 +72,6 @@ export default function GameModals({ gameState }: GameModalsProps) {
             >
               <RotateCcw className="mr-2" size={16} />
               Try Again
-            </Button>
-            <Button
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium"
-              onClick={() => setIsLeaderboardModalOpen(true)}
-            >
-              <Trophy className="mr-2" size={16} />
-              Submit Score
             </Button>
             <Button
               variant="outline"
@@ -207,10 +171,11 @@ export default function GameModals({ gameState }: GameModalsProps) {
                 Level Mode
               </h3>
               <ul className="text-slate-300 space-y-2 text-sm">
-                <li>• Progressive difficulty with longer patterns</li>
-                <li>• Complete levels to unlock new ones</li>
-                <li>• Each level has a time limit</li>
-                <li>• Get secret codes upon completion</li>
+                <li>• Level 1: 4 colors, Level 2: 5 colors, etc.</li>
+                <li>• Each level gets progressively harder</li>
+                <li>• Time limit increases with difficulty</li>
+                <li>• Fixed secret codes for each level</li>
+                <li>• Share codes with friends!</li>
               </ul>
             </div>
 
@@ -251,72 +216,6 @@ export default function GameModals({ gameState }: GameModalsProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Leaderboard Submission Modal */}
-      <Dialog open={isLeaderboardModalOpen} onOpenChange={handleLeaderboardModalClose}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-slate-50 max-w-md">
-          <DialogHeader>
-            <div className="text-center">
-              <div className="text-6xl mb-4">🏆</div>
-              <DialogTitle className="text-2xl font-bold mb-2">Submit Your Score</DialogTitle>
-              <DialogDescription className="text-slate-400">
-                Add your name to the leaderboard
-              </DialogDescription>
-            </div>
-          </DialogHeader>
-          
-          <Card className="bg-slate-700 border-slate-600">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-400 mb-2">{finalScore}</div>
-              <div className="text-sm text-slate-400">Your Final Score</div>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="playerName" className="text-sm font-medium text-slate-300">
-                Player Name
-              </Label>
-              <Input
-                id="playerName"
-                type="text"
-                value={playerName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPlayerName(e.target.value.slice(0, 20))} // Limit to 20 characters
-                placeholder="Enter your name..."
-                className="mt-1 bg-slate-700 border-slate-600 text-slate-50 placeholder-slate-400"
-                maxLength={20}
-                disabled={isSubmitting}
-                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === 'Enter' && playerName.trim()) {
-                    handleSubmitScore();
-                  }
-                }}
-              />
-              <div className="text-xs text-slate-400 mt-1">
-                {playerName.length}/20 characters
-              </div>
-            </div>
-
-            <div className="flex space-x-4">
-              <Button
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium"
-                onClick={handleSubmitScore}
-                disabled={!playerName.trim() || isSubmitting}
-              >
-                <User className="mr-2" size={16} />
-                {isSubmitting ? "Submitting..." : "Submit Score"}
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 border-slate-600"
-                onClick={handleLeaderboardModalClose}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

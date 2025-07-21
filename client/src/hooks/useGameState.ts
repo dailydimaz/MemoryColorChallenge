@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { InsertLeaderboardEntry } from "@shared/schema";
 
 type GameMode = 'levels' | 'challenge';
 type GamePhase = 'idle' | 'showing' | 'waiting' | 'playing' | 'complete' | 'failed';
@@ -10,7 +7,6 @@ type Color = 'green' | 'red';
 
 export function useGameState() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   
   // Game state
   const [gameMode, setGameMode] = useState<GameMode>('levels');
@@ -32,6 +28,9 @@ export function useGameState() {
   const [challengeSequence, setChallengeSequence] = useState<Color[]>([]);
   const [challengeStartTime, setChallengeStartTime] = useState(0);
   const [challengeVisibleColors, setChallengeVisibleColors] = useState<Color[]>([]);
+  
+  // Player session state
+  const [playerName, setPlayerName] = useState('');
   
   // Modal states
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState(false);
@@ -61,6 +60,7 @@ export function useGameState() {
         setCurrentScore(state.currentScore || 0);
         setUnlockedLevels(state.unlockedLevels || 1);
         setLevelCodes(state.levelCodes || {});
+        setPlayerName(state.playerName || '');
       } catch (error) {
         console.error('Failed to load game state:', error);
       }
@@ -73,10 +73,11 @@ export function useGameState() {
       currentLevel,
       currentScore,
       unlockedLevels,
-      levelCodes
+      levelCodes,
+      playerName
     };
     localStorage.setItem('memoryGameState', JSON.stringify(state));
-  }, [currentLevel, currentScore, unlockedLevels, levelCodes]);
+  }, [currentLevel, currentScore, unlockedLevels, levelCodes, playerName]);
   
   useEffect(() => {
     saveGameState();
@@ -105,10 +106,15 @@ export function useGameState() {
     return Array.from({ length }, () => colors[Math.floor(Math.random() * colors.length)]);
   }, []);
   
-  // Generate secret code
-  const generateSecretCode = useCallback((): string => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  // Fixed secret codes for each level - same for all players
+  const getSecretCodeForLevel = useCallback((level: number): string => {
+    const secretCodes = [
+      'MEMO', 'PTRN', 'CLRS', 'MIND', 'GLOW', // Levels 1-5
+      'SYNC', 'FLUX', 'VIBE', 'CORE', 'APEX', // Levels 6-10
+      'ZEST', 'NOVA', 'EPIC', 'RUSH', 'BOLT', // Levels 11-15
+      'HERO', 'SAGE', 'PEAK', 'PURE', 'ZEN'   // Levels 16-20
+    ];
+    return secretCodes[level - 1] || `LVL${level}`;
   }, []);
   
   // Show pattern sequence with progress indicator (for levels mode)
@@ -184,6 +190,10 @@ export function useGameState() {
     setChallengePhase('guessing');
     setChallengeCurrentIndex(0);
     
+    // IMPORTANT: Start the challenge timer immediately to prevent exploitation
+    // This ensures survival time starts counting from when rolling begins, not when user clicks
+    setChallengeStartTime(Date.now());
+    
     // Hide the first color and start guessing timer
     const visibleColors = sequence.slice(1);
     setChallengeVisibleColors(visibleColors);
@@ -230,7 +240,6 @@ export function useGameState() {
       // New rolling sequence challenge mode
       setCurrentScore(0);
       setChallengeCurrentIndex(0);
-      setChallengeStartTime(Date.now());
       setGamePhase('showing');
       
       // Start with initial sequence of 4 colors
@@ -239,19 +248,20 @@ export function useGameState() {
       setChallengeVisibleColors([...initialSequence]);
       
       // Start the rolling sequence after a brief showing period
+      // Timer will start when rolling begins, not here
       patternTimeoutRef.current = setTimeout(() => {
         startRollingSequence(initialSequence);
       }, 2000); // Show initial pattern for 2 seconds
       
     } else {
-      // Levels mode
-      const patternLength = Math.min(3 + currentLevel, 10);
+      // Levels mode - Progressive difficulty: Level 1 = 4 colors, Level 2 = 5 colors, etc.
+      const patternLength = 3 + currentLevel; // Level 1 = 4, Level 2 = 5, Level 3 = 6, etc.
       const newPattern = generatePattern(patternLength);
       setPattern(newPattern);
       setUserInput([]);
       setPatternProgress(0);
       setGamePhase('showing');
-      setTimeRemaining(30 + currentLevel * 5);
+      setTimeRemaining(30 + currentLevel * 3); // More challenging time pressure
       
       // Show pattern sequence
       showPatternSequence(newPattern);
@@ -260,7 +270,7 @@ export function useGameState() {
 
   // Handle level completion
   const handleLevelComplete = useCallback((earnedScore: number) => {
-    const newSecretCode = generateSecretCode();
+    const newSecretCode = getSecretCodeForLevel(currentLevel);
     const newLevelCodes = { ...levelCodes, [currentLevel]: newSecretCode };
     
     setLevelCodes(newLevelCodes);
@@ -280,7 +290,7 @@ export function useGameState() {
       title: "Level Complete!",
       description: `Secret code: ${newSecretCode}`,
     });
-  }, [currentLevel, unlockedLevels, timeRemaining, levelCodes, generateSecretCode, toast]);
+  }, [currentLevel, unlockedLevels, timeRemaining, levelCodes, getSecretCodeForLevel, toast]);
 
   // Handle pattern completion
   const handlePatternComplete = useCallback(() => {
@@ -391,24 +401,32 @@ export function useGameState() {
       setGamePhase('idle');
       setPattern([]);
       setUserInput([]);
-      setTimeRemaining(30 + level * 5);
+      setTimeRemaining(30 + level * 3);
     }
   }, [unlockedLevels]);
   
   // Submit secret code
   const submitSecretCode = useCallback(() => {
-    const targetLevel = Object.entries(levelCodes).find(([_, code]) => code === secretCode.toUpperCase());
+    const inputCode = secretCode.toUpperCase().trim();
     
-    if (targetLevel) {
-      const level = parseInt(targetLevel[0]) + 1;
-      setCurrentLevel(level);
-      setUnlockedLevels(Math.max(unlockedLevels, level));
+    // Find which level this code belongs to
+    let targetLevel = 0;
+    for (let level = 1; level <= 20; level++) {
+      if (getSecretCodeForLevel(level) === inputCode) {
+        targetLevel = level;
+        break;
+      }
+    }
+    
+    if (targetLevel > 0) {
+      setCurrentLevel(targetLevel);
+      setUnlockedLevels(Math.max(unlockedLevels, targetLevel));
       setSecretCode('');
       setGamePhase('idle');
       
       toast({
         title: "Secret code accepted!",
-        description: `Unlocked level ${level}`,
+        description: `Unlocked level ${targetLevel}`,
       });
     } else {
       toast({
@@ -417,49 +435,8 @@ export function useGameState() {
         variant: "destructive",
       });
     }
-  }, [secretCode, levelCodes, unlockedLevels, toast]);
+  }, [secretCode, unlockedLevels, getSecretCodeForLevel, toast]);
   
-  // Leaderboard mutation
-  const submitScoreMutation = useMutation({
-    mutationFn: async (entry: InsertLeaderboardEntry) => {
-      const response = await apiRequest('POST', '/api/leaderboard', entry);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/leaderboard'] });
-      toast({
-        title: "Score submitted!",
-        description: "Your score has been added to the leaderboard",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Failed to submit score",
-        description: "Please try again later",
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Submit score to leaderboard
-  const submitScore = useCallback((playerName: string) => {
-    // Sanitize player name - remove HTML tags, limit length, trim whitespace
-    const sanitizedName = playerName
-      .replace(/<[^>]*>/g, '') // Remove HTML tags
-      .replace(/[<>&"']/g, '') // Remove potentially dangerous characters
-      .trim()
-      .slice(0, 20); // Limit to 20 characters
-    
-    if (sanitizedName && currentScore > 0) {
-      return submitScoreMutation.mutateAsync({
-        playerName: sanitizedName,
-        score: currentScore,
-        level: gameMode === 'levels' ? currentLevel : Math.max(1, Math.floor(currentScore / 10)),
-        timeCompleted: Date.now(),
-      });
-    }
-    return Promise.reject(new Error('Invalid player name or score'));
-  }, [currentScore, currentLevel, gameMode, submitScoreMutation]);
   
   // Show instructions
   const showInstructions = useCallback(() => {
@@ -515,6 +492,10 @@ export function useGameState() {
     accuracyBonus,
     totalScore,
     
+    // Player session
+    playerName,
+    setPlayerName,
+    
     // Actions
     handleColorClick,
     startNewPattern,
@@ -522,7 +503,6 @@ export function useGameState() {
     nextLevel,
     selectLevel,
     submitSecretCode,
-    submitScore,
     showInstructions,
   };
 }
