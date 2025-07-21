@@ -161,6 +161,7 @@ export default function GameModals({ gameState }: GameModalsProps) {
                 <li>• Watch the color pattern sequence carefully</li>
                 <li>• Remember the order of green and red button flashes</li>
                 <li>• When it's your turn, click the buttons in the same order</li>
+                <li>• Use keyboard shortcuts: <span className="font-mono bg-slate-600 px-1 rounded">Q</span> for Green, <span className="font-mono bg-slate-600 px-1 rounded">P</span> for Red</li>
                 <li>• Complete the pattern correctly to advance</li>
               </ul>
             </div>

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Play, HelpCircle, Infinity, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 type Color = 'green' | 'red';
 
@@ -62,6 +63,41 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const progressWidth = gameMode === 'challenge' 
     ? 0 // No progress bar for challenge mode
     : pattern.length > 0 ? (userInput.length / pattern.length) * 100 : 0;
+
+  // Visual feedback for keyboard presses
+  const [keyboardPressed, setKeyboardPressed] = useState<Color | null>(null);
+
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle keyboard input during playing phase
+      if (gamePhase !== 'playing') return;
+      
+      const key = event.key.toLowerCase();
+      
+      if (key === 'q') {
+        event.preventDefault();
+        setKeyboardPressed('green');
+        handleColorClick('green');
+        // Clear highlight after a short delay
+        setTimeout(() => setKeyboardPressed(null), 150);
+      } else if (key === 'p') {
+        event.preventDefault();
+        setKeyboardPressed('red');
+        handleColorClick('red');
+        // Clear highlight after a short delay
+        setTimeout(() => setKeyboardPressed(null), 150);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [gamePhase, handleColorClick]);
 
   return (
     <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
@@ -259,11 +295,12 @@ export default function GameBoard({ gameState }: GameBoardProps) {
               "w-full h-36 lg:h-32 rounded-xl shadow-lg border-4 text-xl lg:text-2xl font-bold transition-all duration-200",
               "bg-green-600 hover:bg-green-500 active:bg-green-700 border-green-500 text-white",
               "transform hover:scale-105 active:scale-95 touch-manipulation active:ring-4 active:ring-green-300",
-              gamePhase !== 'playing' && "opacity-40 cursor-not-allowed grayscale"
+              gamePhase !== 'playing' && "opacity-40 cursor-not-allowed grayscale",
+              keyboardPressed === 'green' && "ring-4 ring-green-300 scale-95"
             )}
             onClick={() => handleColorClick('green')}
             disabled={gamePhase !== 'playing'}
-            aria-label="Green button - Circle pattern"
+            aria-label="Green button - Circle pattern - Press Q"
           >
             <div className="flex flex-col items-center">
               {/* Circle pattern for color-blind accessibility */}
@@ -271,6 +308,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                 <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full bg-green-600" />
               </div>
               <span className="text-lg lg:text-xl font-bold">GREEN</span>
+              <div className="text-xs text-green-200 mt-1 opacity-75">Press Q</div>
             </div>
           </Button>
           
@@ -281,11 +319,12 @@ export default function GameBoard({ gameState }: GameBoardProps) {
               "w-full h-36 lg:h-32 rounded-xl shadow-lg border-4 text-xl lg:text-2xl font-bold transition-all duration-200",
               "bg-red-600 hover:bg-red-500 active:bg-red-700 border-red-500 text-white",
               "transform hover:scale-105 active:scale-95 touch-manipulation active:ring-4 active:ring-red-300",
-              gamePhase !== 'playing' && "opacity-40 cursor-not-allowed grayscale"
+              gamePhase !== 'playing' && "opacity-40 cursor-not-allowed grayscale",
+              keyboardPressed === 'red' && "ring-4 ring-red-300 scale-95"
             )}
             onClick={() => handleColorClick('red')}
             disabled={gamePhase !== 'playing'}
-            aria-label="Red button - Square pattern"
+            aria-label="Red button - Square pattern - Press P"
           >
             <div className="flex flex-col items-center">
               {/* Square pattern for color-blind accessibility */}
@@ -293,6 +332,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                 <div className="w-6 h-6 lg:w-8 lg:h-8 bg-red-600 rounded-sm" />
               </div>
               <span className="text-lg lg:text-xl font-bold">RED</span>
+              <div className="text-xs text-red-200 mt-1 opacity-75">Press P</div>
             </div>
           </Button>
         </div>
