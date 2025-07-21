@@ -1,4 +1,4 @@
-# Memory Patterns Game - Replit Architecture Guide
+# Memory Patterns Game
 
 ## Overview
 
