@@ -238,13 +238,8 @@ export function useGameState() {
     // This ensures survival time starts counting from when rolling begins, not when user clicks
     setChallengeStartTime(Date.now());
     
-    // Hide the first color and start guessing timer
-    let visibleColors = sequence.slice(1);
-    
-    // Limit to 25 visible colors maximum for mobile compatibility
-    if (visibleColors.length > 25) {
-      visibleColors = visibleColors.slice(-25); // Show only the last 25 colors
-    }
+    // Hide the first color and show only 4 visible colors
+    let visibleColors = sequence.slice(1, 5); // Show only 4 colors after the hidden one
     
     setChallengeVisibleColors(visibleColors);
     
@@ -280,14 +275,16 @@ export function useGameState() {
     currentSequence.push(newColor2);
     setChallengeSequence(currentSequence);
     
-    // Update visible colors (hide the current guess position, show the rest)
-    // Limit to max 25 visible colors for mobile UI (+ 1 hidden = 26 total displayed)
-    const minVisibleStart = Math.max(0, nextIndex + 1);
-    let visibleColors = currentSequence.slice(minVisibleStart);
+    // Update visible colors (hide the current guess position, show only 4 visible colors)
+    // Show exactly 4 visible colors after the hidden position
+    const visibleStart = nextIndex + 1;
+    let visibleColors = currentSequence.slice(visibleStart, visibleStart + 4);
     
-    // Limit to 25 visible colors maximum for mobile compatibility
-    if (visibleColors.length > 25) {
-      visibleColors = visibleColors.slice(-25); // Show only the last 25 colors
+    // If we don't have enough colors after the hidden position, pad with earlier colors
+    if (visibleColors.length < 4 && currentSequence.length > 5) {
+      const needed = 4 - visibleColors.length;
+      const earlierColors = currentSequence.slice(Math.max(0, nextIndex - needed), nextIndex);
+      visibleColors = [...earlierColors, ...visibleColors];
     }
     
     setChallengeVisibleColors(visibleColors);
@@ -318,8 +315,8 @@ export function useGameState() {
       setChallengeCurrentIndex(0);
       setGamePhase('showing');
       
-      // Start with initial sequence of 4 colors
-      const initialSequence = generatePattern(4);
+      // Start with initial sequence of 5 colors (1 hidden + 4 visible)
+      const initialSequence = generatePattern(5);
       setChallengeSequence(initialSequence);
       setChallengeVisibleColors([...initialSequence]);
       

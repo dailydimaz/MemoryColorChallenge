@@ -268,7 +268,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                   ⏰ {challengeGuessTimer} seconds left!
                 </div>
                 <div className="text-xs text-orange-200">
-                  Guess position {challengeCurrentIndex + 1} | Survived: {currentScore} seconds
+                  Position {challengeCurrentIndex + 1} | Survived: {currentScore} seconds
                 </div>
                 <div className="text-xs text-orange-300 mt-1">
                   Remember: What color was in the hidden position?
