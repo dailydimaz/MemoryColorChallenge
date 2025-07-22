@@ -119,12 +119,13 @@ export function useGameState() {
   }, [gameMode, gamePhase, timeRemaining]);
   
   // Calculate current timer based on survival time (speed rush)
-  const calculateCurrentTimer = useCallback(() => {
+  const calculateCurrentTimer = useCallback((startTime?: number) => {
+    const effectiveStartTime = startTime || challengeStartTime;
     // If challenge hasn't started yet, return initial timer
-    if (challengeStartTime === 0) {
+    if (effectiveStartTime === 0) {
       return 5;
     }
-    const survivalTime = Math.floor((Date.now() - challengeStartTime) / 1000);
+    const survivalTime = Math.floor((Date.now() - effectiveStartTime) / 1000);
     const timerReduction = Math.floor(survivalTime / 100); // Reduce 1s every 100s
     return Math.max(1, 5 - timerReduction); // Minimum 1 second
   }, [challengeStartTime]);
@@ -192,6 +193,7 @@ export function useGameState() {
   
   // Handle game over
   const handleGameOver = useCallback(() => {
+    console.log('handleGameOver called - gameMode:', gameMode, 'gamePhase:', gamePhase);
     setGamePhase('failed');
     
     if (gameMode === 'challenge') {
@@ -220,27 +222,72 @@ export function useGameState() {
     if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
     
     const currentTimer = calculateCurrentTimer();
+    console.log('startChallengeGuessTimer - currentTimer:', currentTimer, 'challengeStartTime:', challengeStartTime);
     setChallengeGuessTimer(currentTimer);
     
     // Use a precise timeout based on current timer to prevent AFK exploitation
-    const timeoutMs = currentTimer * 1000;
+    // Add 100ms buffer to ensure game ends after display timer shows 0
+    const timeoutMs = currentTimer * 1000 + 100;
+    console.log('Setting timer timeout for:', timeoutMs, 'ms');
     
     timerRef.current = setTimeout(() => {
       // Time's up - game over (no matter what the display shows)
+      console.log('Timer timeout triggered - calling handleGameOver');
       handleGameOver();
     }, timeoutMs);
     
     // Update display timer every second for UI feedback
-    let currentTime = calculateCurrentTimer();
+    let currentTime = currentTimer;
     const updateDisplay = () => {
       setChallengeGuessTimer(currentTime);
       currentTime--;
       if (currentTime > 0) {
         displayTimerRef.current = setTimeout(updateDisplay, 1000);
+      } else {
+        // When display reaches 0, trigger game over immediately
+        console.log('Display timer reached 0 - calling handleGameOver');
+        setTimeout(() => handleGameOver(), 100);
       }
     };
     updateDisplay();
   }, [handleGameOver, challengeStartTime, calculateCurrentTimer]);
+  
+  // Start challenge timer with explicit start time (for initial game start)
+  const startChallengeGuessTimerWithStartTime = useCallback((startTime: number) => {
+    // Clear any existing timers
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
+    
+    const currentTimer = calculateCurrentTimer(startTime);
+    console.log('startChallengeGuessTimerWithStartTime - currentTimer:', currentTimer, 'startTime:', startTime);
+    setChallengeGuessTimer(currentTimer);
+    
+    // Use a precise timeout based on current timer to prevent AFK exploitation
+    // Add 100ms buffer to ensure game ends after display timer shows 0
+    const timeoutMs = currentTimer * 1000 + 100;
+    console.log('Setting timer timeout for:', timeoutMs, 'ms');
+    
+    timerRef.current = setTimeout(() => {
+      // Time's up - game over (no matter what the display shows)
+      console.log('Timer timeout triggered - calling handleGameOver');
+      handleGameOver();
+    }, timeoutMs);
+    
+    // Update display timer every second for UI feedback
+    let currentTime = currentTimer;
+    const updateDisplay = () => {
+      setChallengeGuessTimer(currentTime);
+      currentTime--;
+      if (currentTime > 0) {
+        displayTimerRef.current = setTimeout(updateDisplay, 1000);
+      } else {
+        // When display reaches 0, trigger game over immediately
+        console.log('Display timer reached 0 - calling handleGameOver');
+        setTimeout(() => handleGameOver(), 100);
+      }
+    };
+    updateDisplay();
+  }, [handleGameOver, calculateCurrentTimer]);
   
   // Start rolling sequence for challenge mode
   const startRollingSequence = useCallback((sequence: Color[]) => {
@@ -250,17 +297,19 @@ export function useGameState() {
     
     // IMPORTANT: Start the challenge timer immediately to prevent exploitation
     // This ensures survival time starts counting from when rolling begins, not when user clicks
-    setChallengeStartTime(Date.now());
+    const startTime = Date.now();
+    setChallengeStartTime(startTime);
     
     // Hide the first color and show only 4 visible colors
     let visibleColors = sequence.slice(1, 5); // Show only 4 colors after the hidden one
     
     setChallengeVisibleColors(visibleColors);
     
-    // Start 5-second timer for first guess
-    setChallengeGuessTimer(5);
-    startChallengeGuessTimer();
-  }, [startChallengeGuessTimer]);
+    // Start 5-second timer for first guess - pass start time to ensure accurate calculation
+    const initialTimer = calculateCurrentTimer(startTime);
+    setChallengeGuessTimer(initialTimer);
+    startChallengeGuessTimerWithStartTime(startTime);
+  }, [calculateCurrentTimer]);
 
   // Continue rolling sequence after correct guess
   const continueRollingSequence = useCallback(() => {
