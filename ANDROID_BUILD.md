@@ -97,6 +97,19 @@ npx cap open android
 
 ## 🐛 Troubleshooting
 
+### GitHub Actions Issues
+
+**Build Fails with "403 Forbidden" on Release Creation**
+- Ensure repository settings allow GitHub Actions to create releases
+- Go to: Settings → Actions → General → Workflow permissions
+- Select "Read and write permissions"
+- Or add the workflow permissions in the YAML file (already included)
+
+**Release Creation Fails**
+- Only happens on pushes to `main` branch
+- Pull requests and other branches will build APKs without creating releases
+- Check the Actions tab for detailed error messages
+
 ### APK Won't Install
 - Ensure "Unknown Sources" is enabled
 - Check if you have enough storage space
