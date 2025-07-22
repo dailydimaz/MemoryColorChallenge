@@ -50,10 +50,11 @@ export function useGameState() {
   const [accuracyBonus, setAccuracyBonus] = useState(0);
   const [totalScore, setTotalScore] = useState(0);
   
-  // Refs for timers
+  // Refs for timers and challenge start time
   const timerRef = useRef<NodeJS.Timeout>();
   const patternTimeoutRef = useRef<NodeJS.Timeout>();
   const displayTimerRef = useRef<NodeJS.Timeout>();
+  const challengeStartTimeRef = useRef<number>(0);
   
   // Load game state from localStorage
   useEffect(() => {
@@ -120,7 +121,7 @@ export function useGameState() {
   
   // Calculate current timer based on survival time (speed rush)
   const calculateCurrentTimer = useCallback((startTime?: number) => {
-    const effectiveStartTime = startTime || challengeStartTime;
+    const effectiveStartTime = startTime || challengeStartTimeRef.current;
     // If challenge hasn't started yet, return initial timer
     if (effectiveStartTime === 0) {
       return 5;
@@ -128,7 +129,7 @@ export function useGameState() {
     const survivalTime = Math.floor((Date.now() - effectiveStartTime) / 1000);
     const timerReduction = Math.floor(survivalTime / 100); // Reduce 1s every 100s
     return Math.max(1, 5 - timerReduction); // Minimum 1 second
-  }, [challengeStartTime]);
+  }, []);
 
   // Generate random pattern with improved distribution (allow up to 3 consecutive same colors)
   const generatePattern = useCallback((length: number): Color[] => {
@@ -198,7 +199,11 @@ export function useGameState() {
     
     if (gameMode === 'challenge') {
       // Calculate survival time in seconds
-      const survivalTime = Math.floor((Date.now() - challengeStartTime) / 1000);
+      console.log('handleGameOver - challengeStartTimeRef:', challengeStartTimeRef.current, 'Date.now():', Date.now());
+      const survivalTime = challengeStartTimeRef.current > 0 
+        ? Math.floor((Date.now() - challengeStartTimeRef.current) / 1000)
+        : 0; // If start time is invalid, survival time is 0
+      console.log('Calculated survival time:', survivalTime);
       setFinalScore(survivalTime);
       setCurrentScore(survivalTime);
     } else {
@@ -213,7 +218,7 @@ export function useGameState() {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (patternTimeoutRef.current) clearTimeout(patternTimeoutRef.current);
     if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
-  }, [gameMode, currentScore, unlockedLevels, challengeStartTime]);
+  }, [gameMode, currentScore, unlockedLevels]);
   
   // Start the timer for challenge mode guessing (with speed rush)
   const startChallengeGuessTimer = useCallback(() => {
@@ -299,6 +304,7 @@ export function useGameState() {
     // This ensures survival time starts counting from when rolling begins, not when user clicks
     const startTime = Date.now();
     setChallengeStartTime(startTime);
+    challengeStartTimeRef.current = startTime;
     
     // Hide the first color and show only 4 visible colors
     let visibleColors = sequence.slice(1, 5); // Show only 4 colors after the hidden one
@@ -466,7 +472,10 @@ export function useGameState() {
         if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
         
         // Update score with survival time
-        const survivalTime = Math.floor((Date.now() - challengeStartTime) / 1000);
+        const survivalTime = challengeStartTimeRef.current > 0 
+          ? Math.floor((Date.now() - challengeStartTimeRef.current) / 1000)
+          : 0;
+        console.log('Correct guess - survival time:', survivalTime, 'challengeStartTimeRef:', challengeStartTimeRef.current);
         setCurrentScore(survivalTime);
         
         // Continue the rolling sequence
@@ -497,7 +506,7 @@ export function useGameState() {
         handlePatternComplete();
       }
     }
-  }, [gamePhase, gameMode, userInput, pattern, challengeSequence, challengeCurrentIndex, challengeStartTime, handleGameOver, handlePatternComplete, continueRollingSequence]);
+  }, [gamePhase, gameMode, userInput, pattern, challengeSequence, challengeCurrentIndex, handleGameOver, handlePatternComplete, continueRollingSequence]);
   
   // Restart game
   const restartGame = useCallback(() => {
@@ -515,6 +524,7 @@ export function useGameState() {
     setChallengePhase('showing');
     setChallengeGuessTimer(5);
     setChallengeStartTime(0);
+    challengeStartTimeRef.current = 0;
     
     if (gameMode === 'levels') {
       setCurrentLevel(1);
