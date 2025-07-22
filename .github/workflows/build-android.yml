@@ -1,0 +1,101 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build web app
+      run: npm run build
+
+    - name: Sync Capacitor
+      run: npx cap sync android
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x android/gradlew
+
+    - name: Build Debug APK
+      run: |
+        cd android
+        ./gradlew assembleDebug --stacktrace
+
+    - name: Build Release APK (unsigned)
+      run: |
+        cd android
+        ./gradlew assembleRelease --stacktrace
+
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: memory-color-challenge-debug
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: memory-color-challenge-release
+        path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+        retention-days: 30
+
+    - name: Create Release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ github.run_number }}
+        name: Memory Color Challenge v${{ github.run_number }}
+        body: |
+          🎮 **Memory Color Challenge - Android APK**
+          
+          **Features:**
+          - 🧠 Memory pattern testing with progressive difficulty
+          - 🏃‍♂️ Speed Rush challenge mode (5s → 1s timer progression)
+          - 🎯 Rolling sequence challenge with survival scoring
+          - ⌨️ Keyboard controls (Q for Green, P for Red)
+          - 📱 Mobile-optimized UI with haptic feedback
+          
+          **Download:**
+          - `app-debug.apk` - For testing and development
+          - `app-release-unsigned.apk` - For production (needs signing)
+          
+          **Installation:**
+          1. Enable "Unknown sources" in Android Settings → Security
+          2. Download and install the APK file
+          3. Enjoy the challenge!
+          
+        files: |
+          android/app/build/outputs/apk/debug/app-debug.apk
+          android/app/build/outputs/apk/release/app-release-unsigned.apk
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
