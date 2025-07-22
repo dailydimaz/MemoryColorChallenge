@@ -42,7 +42,7 @@ If you want to build the APK locally on your machine:
 
 ### Prerequisites
 - Node.js 20+ (required by Capacitor CLI)
-- Java JDK 17+
+- Java JDK 21 (required by Android build)
 - Android SDK
 - Android Studio (optional but recommended)
 
