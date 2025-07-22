@@ -120,6 +120,10 @@ export function useGameState() {
   
   // Calculate current timer based on survival time (speed rush)
   const calculateCurrentTimer = useCallback(() => {
+    // If challenge hasn't started yet, return initial timer
+    if (challengeStartTime === 0) {
+      return 5;
+    }
     const survivalTime = Math.floor((Date.now() - challengeStartTime) / 1000);
     const timerReduction = Math.floor(survivalTime / 100); // Reduce 1s every 100s
     return Math.max(1, 5 - timerReduction); // Minimum 1 second
@@ -231,7 +235,7 @@ export function useGameState() {
     const updateDisplay = () => {
       setChallengeGuessTimer(currentTime);
       currentTime--;
-      if (currentTime >= 0) {
+      if (currentTime > 0) {
         displayTimerRef.current = setTimeout(updateDisplay, 1000);
       }
     };
