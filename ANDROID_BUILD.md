@@ -41,7 +41,7 @@ This project uses GitHub Actions to automatically build Android APK files whenev
 If you want to build the APK locally on your machine:
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 20+ (required by Capacitor CLI)
 - Java JDK 17+
 - Android SDK
 - Android Studio (optional but recommended)
