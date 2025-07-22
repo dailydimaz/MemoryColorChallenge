@@ -27,7 +27,7 @@ export function useGameState() {
   
   // Challenge mode state
   const [challengePhase, setChallengePhase] = useState<'showing' | 'guessing'>('showing');
-  const [challengeGuessTimer, setChallengeGuessTimer] = useState(3);
+  const [challengeGuessTimer, setChallengeGuessTimer] = useState(5);
   const [challengeCurrentIndex, setChallengeCurrentIndex] = useState(0);
   const [challengeSequence, setChallengeSequence] = useState<Color[]>([]);
   const [challengeStartTime, setChallengeStartTime] = useState(0);
@@ -118,6 +118,13 @@ export function useGameState() {
     };
   }, [gameMode, gamePhase, timeRemaining]);
   
+  // Calculate current timer based on survival time (speed rush)
+  const calculateCurrentTimer = useCallback(() => {
+    const survivalTime = Math.floor((Date.now() - challengeStartTime) / 1000);
+    const timerReduction = Math.floor(survivalTime / 100); // Reduce 1s every 100s
+    return Math.max(1, 5 - timerReduction); // Minimum 1 second
+  }, [challengeStartTime]);
+
   // Generate random pattern with improved distribution (allow up to 3 consecutive same colors)
   const generatePattern = useCallback((length: number): Color[] => {
     const colors: Color[] = ['green', 'red'];
@@ -202,22 +209,25 @@ export function useGameState() {
     if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
   }, [gameMode, currentScore, unlockedLevels, challengeStartTime]);
   
-  // Start the 3-second timer for challenge mode guessing
+  // Start the timer for challenge mode guessing (with speed rush)
   const startChallengeGuessTimer = useCallback(() => {
     // Clear any existing timers
     if (timerRef.current) clearTimeout(timerRef.current);
     if (displayTimerRef.current) clearTimeout(displayTimerRef.current);
     
-    setChallengeGuessTimer(3);
+    const currentTimer = calculateCurrentTimer();
+    setChallengeGuessTimer(currentTimer);
     
-    // Use a precise 3-second timeout to prevent AFK exploitation
+    // Use a precise timeout based on current timer to prevent AFK exploitation
+    const timeoutMs = currentTimer * 1000;
+    
     timerRef.current = setTimeout(() => {
       // Time's up - game over (no matter what the display shows)
       handleGameOver();
-    }, 3000); // Exactly 3 seconds, no more
+    }, timeoutMs);
     
     // Update display timer every second for UI feedback
-    let currentTime = 3;
+    let currentTime = calculateCurrentTimer();
     const updateDisplay = () => {
       setChallengeGuessTimer(currentTime);
       currentTime--;
@@ -226,7 +236,7 @@ export function useGameState() {
       }
     };
     updateDisplay();
-  }, [handleGameOver]);
+  }, [handleGameOver, challengeStartTime, calculateCurrentTimer]);
   
   // Start rolling sequence for challenge mode
   const startRollingSequence = useCallback((sequence: Color[]) => {
@@ -243,8 +253,8 @@ export function useGameState() {
     
     setChallengeVisibleColors(visibleColors);
     
-    // Start 3-second timer for first guess
-    setChallengeGuessTimer(3);
+    // Start 5-second timer for first guess
+    setChallengeGuessTimer(5);
     startChallengeGuessTimer();
   }, [startChallengeGuessTimer]);
 
@@ -292,10 +302,11 @@ export function useGameState() {
     // Move to next position
     setChallengeCurrentIndex(nextIndex);
     
-    // Start timer for next guess
-    setChallengeGuessTimer(3);
+    // Start timer for next guess (with speed rush calculation)
+    const currentTimer = calculateCurrentTimer();
+    setChallengeGuessTimer(currentTimer);
     startChallengeGuessTimer();
-  }, [challengeSequence, challengeCurrentIndex, generatePattern, startChallengeGuessTimer]);
+  }, [challengeSequence, challengeCurrentIndex, generatePattern, startChallengeGuessTimer, calculateCurrentTimer]);
 
   // Start new pattern
   const startNewPattern = useCallback(() => {
@@ -449,7 +460,7 @@ export function useGameState() {
     setChallengeVisibleColors([]);
     setChallengeCurrentIndex(0);
     setChallengePhase('showing');
-    setChallengeGuessTimer(3);
+    setChallengeGuessTimer(5);
     setChallengeStartTime(0);
     
     if (gameMode === 'levels') {

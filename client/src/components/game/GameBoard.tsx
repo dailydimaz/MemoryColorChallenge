@@ -270,6 +270,11 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                 <div className="text-xs text-orange-200">
                   Position {challengeCurrentIndex + 1} | Survived: {currentScore} seconds
                 </div>
+                {currentScore >= 100 && (
+                  <div className="text-xs text-red-300 mt-1 font-semibold animate-pulse">
+                    🚀 SPEED RUSH: {Math.max(1, 5 - Math.floor(currentScore / 100))}s timer!
+                  </div>
+                )}
                 <div className="text-xs text-orange-300 mt-1">
                   Remember: What color was in the hidden position?
                 </div>
